@@ -8,7 +8,12 @@ Real operations: IAM enumeration, S3 scanning, Lambda analysis, RDS assessment
 import argparse
 import json
 import sys
+import os
 from datetime import datetime
+
+# Add parent directory to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from utils.banner import print_nox_banner
 from utils.formatter import format_output
 from utils.logger import setup_logger
@@ -439,12 +444,30 @@ Examples:
     # Output options
     parser.add_argument('--output', default='json', choices=['json', 'csv', 'txt'], help='Output format')
     parser.add_argument('--out-file', help='Output file')
-    parser.add_argument('--confirm-legal', required=True, help='Confirm legal authorization')
+    parser.add_argument('--confirm-legal', action='store_true', help='Confirm legal authorization')
     
     args = parser.parse_args()
     
     # Print banner
-    print_nox_banner("AWS Security Assessment (awsx)")
+    TOOL_NAME = "AWSX"
+    TOOL_VERSION = "1.0.0"
+    TOOL_DESCRIPTION = "AWS Security Assessment"
+    BORDER = "yellow"
+    NAME_COLOR = "bold yellow"
+    FILL_COLOR = "yellow"
+    TAG_COLOR = "light_yellow"
+    FCHAR = "▒"
+    
+    ART_LINES = [
+        "     █████╗ ██╗    ██╗███████╗",
+        "    ██╔══██╗██║    ██║██╔════╝",
+        "    ███████║██║ █╗ ██║███████╗",
+        "    ██╔══██║██║███╗██║╚════██║",
+        "    ██║  ██║╚███╔███╔╝███████║",
+        "    ╚═╝  ╚═╝ ╚══╝╚══╝ ╚══════╝",
+    ]
+    
+    print_nox_banner(TOOL_NAME, TOOL_VERSION, TOOL_DESCRIPTION, BORDER, NAME_COLOR, FILL_COLOR, FCHAR, TAG_COLOR, ART_LINES)
     
     # Legal check
     if not args.confirm_legal:

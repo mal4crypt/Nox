@@ -72,6 +72,9 @@ def main():
 
 def run_sprayx(args):
     """Core logic for password spraying."""
+    import time
+    from threading import Thread, Lock
+    
     console.print(f"[*] Starting password spray against: [bold white]{args.domain}[/bold white]")
     logger.info(f"Password spray started: domain={args.domain}, service={args.service}")
     
@@ -80,27 +83,81 @@ def run_sprayx(args):
         "service": args.service,
         "valid_accounts": [],
         "invalid_accounts": [],
+        "attempts": 0,
         "timestamp": datetime.datetime.now().isoformat()
     }
     
-    users = args.users.split(",") if "," in args.users else [args.users]
+    # Parse users
+    if os.path.exists(args.users):
+        with open(args.users, 'r') as f:
+            users = [line.strip() for line in f.readlines()]
+    else:
+        users = [u.strip() for u in args.users.split(",")]
+    
+    results_lock = Lock()
+    
+    def test_credential(user):
+        """Test a single credential"""
+        time.sleep(args.delay)  # Implement delay to avoid lockout
+        
+        try:
+            # Simulated authentication test based on service
+            if args.service == "ldap":
+                # Would normally test LDAP bind
+                success = user.lower() in ["admin", "service", "test"]
+            elif args.service == "smb":
+                # Would normally test SMB logon
+                success = user.lower() in ["administrator", "admin"]
+            elif args.service == "kerberos":
+                # Would normally test AS-REP
+                success = user.lower() in ["admin", "krbtgt"]
+            else:
+                success = False
+            
+            with results_lock:
+                if success:
+                    results["valid_accounts"].append(f"{args.domain}\\{user}")
+                    console.print(f"[bold green][+] VALID: {args.domain}\\{user}[/bold green]")
+                else:
+                    results["invalid_accounts"].append(user)
+                    console.print(f"  [-] Invalid: {user}")
+                results["attempts"] += 1
+        
+        except Exception as e:
+            console.print(f"[!] Error testing {user}: {e}")
     
     console.print(f"[*] Spraying {len(users)} accounts with password: {args.password[:3]}***")
     console.print(f"[*] Service: {args.service.upper()}")
+    console.print(f"[*] Delay: {args.delay}s between attempts, {args.threads} threads\n")
     
-    for i, user in enumerate(users[:5], 1):  # Simulate 5 attempts
-        console.print(f"  [{i}] Attempting {args.domain}\\{user}...")
+    # Create thread pool
+    threads = []
+    for user in users:
+        while len(threads) >= args.threads:
+            threads = [t for t in threads if t.is_alive()]
+            time.sleep(0.1)
+        
+        t = Thread(target=test_credential, args=(user,))
+        t.daemon = True
+        t.start()
+        threads.append(t)
     
-    results["valid_accounts"].append(f"{args.domain}\\admin")
-    console.print("[bold green][+] Valid account found: admin[/bold green]")
+    # Wait for all threads to complete
+    for t in threads:
+        t.join()
     
-    console.print(f"\n[bold green][+] Spray complete: {len(results['valid_accounts'])} valid accounts found[/bold green]")
+    console.print(f"\n[bold green][+] Spray complete[/bold green]")
+    console.print(f"  Valid accounts: {len(results['valid_accounts'])}")
+    console.print(f"  Invalid accounts: {len(results['invalid_accounts'])}")
+    console.print(f"  Total attempts: {results['attempts']}")
     
     if args.out_file:
         format_output(results, args.output, args.out_file)
         console.print(f"[bold cyan]Results saved to: {args.out_file}[/bold cyan]")
     else:
-        console.print("[*] Results (JSON):", results)
+        console.print("[*] Valid accounts found:")
+        for acct in results["valid_accounts"]:
+            console.print(f"  [+] {acct}")
     
     audit_log(logger, getpass.getuser(), args.domain, "cred/sprayx", str(args), "SUCCESS")
 

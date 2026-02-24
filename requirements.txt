@@ -18,6 +18,7 @@ impacket
 ldap3
 pyasn1
 cryptography
+dnspython
 selenium
 shodan
 dnspython

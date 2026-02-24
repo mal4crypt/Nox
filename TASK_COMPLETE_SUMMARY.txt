@@ -15,7 +15,7 @@
 ✅ DONE - NOX now works as a system command: nox <suite> <module> [options]
 
 ❓ Question 2: "Which GitHub repo did you use?"
-✅ ANSWER - https://github.com/mal4crypt/Nox (your production repo)
+✅ ANSWER - https://github.com/mal4crypt/Nox.git (your production repo)
 
 ❓ Question 3: "I can't find any files in the GitHub repo link I sent you"
 ✅ EXPLANATION - All files are there! The repo at github.com/mal4crypt/Nox 
@@ -71,7 +71,7 @@ AFTER:
   ✅ Portable (works from anywhere)
   ✅ Matches industry-standard tools
   ✅ Professional & production-ready
-  ✅ All files on GitHub at: https://github.com/mal4crypt/Nox
+  ✅ All files on GitHub at: https://github.com/mal4crypt/Nox.git
 
 ════════════════════════════════════════════════════════════════════════════════════
 💻 HOW TO USE
@@ -158,7 +158,7 @@ NEW FILES (Committed to GitHub):
 ✅ GITHUB VERIFICATION
 ════════════════════════════════════════════════════════════════════════════════════
 
-Repository: https://github.com/mal4crypt/Nox
+Repository: https://github.com/mal4crypt/Nox.git
 Owner: mal4crypt
 Branch: master
 Status: ✅ ALL FILES LIVE
@@ -231,7 +231,7 @@ Documentation Index:       DOCUMENTATION_INDEX.md
 
 ✅ INSTALLATION: Complete
 ✅ SYSTEM COMMAND: Working (nox <suite> <module> [options])
-✅ GITHUB REPO: All files live at https://github.com/mal4crypt/Nox
+✅ GITHUB REPO: All files live at https://github.com/mal4crypt/Nox.git
 ✅ DOCUMENTATION: Comprehensive guides created
 ✅ TESTING: All 14 modules verified working
 ✅ CERTIFICATION: PLATINUM level (100% pass rate)
@@ -279,5 +279,5 @@ Try it now: nox spekt intel --target example.com --all
 Status: ✅ TASK COMPLETE
 Date: 2026-02-24
 Version: 3.0
-GitHub: https://github.com/mal4crypt/Nox
+GitHub: https://github.com/mal4crypt/Nox.git
 ════════════════════════════════════════════════════════════════════════════════════

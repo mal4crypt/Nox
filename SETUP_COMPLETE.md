@@ -8,7 +8,7 @@ Your NOX framework is now fully installed and ready to use as a system-wide comm
 
 ## 📍 Your GitHub Repository
 
-**Repository URL:** https://github.com/mal4crypt/Nox
+**Repository URL:** https://github.com/mal4crypt/Nox.git
 **Current Location:** `/home/mal4crypt404/Nox`
 **Status:** ✅ Live on GitHub Master Branch
 

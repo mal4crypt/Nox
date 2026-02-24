@@ -403,7 +403,7 @@ nox/
 - **Current Version**: 2.0
 - **Release Date**: February 2026
 - **License**: MIT (Open Source)
-- **Repository**: https://github.com/mal4crypt/Nox
+- **Repository**: https://github.com/mal4crypt/Nox.git
 
 ### Regular Updates
 - ✅ Monthly security updates

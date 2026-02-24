@@ -332,7 +332,7 @@ def print_stats():
     console.print("\n[bold green]       =[/bold green] [yellow]nox v{}[/yellow]".format(VERSION))
     console.print("[bold green]+ -- --=[/bold green] [white]13 suites - 23 modules - 3 utilities[/white]")
     console.print("[bold green]+ -- --=[/bold green] [white]7 offensive - 4 defensive - 2 infrastructure[/white]\n")
-    console.print("Nox Documentation: https://github.com/mal4crypt/Nox")
+    console.print("Nox Documentation: https://github.com/mal4crypt/Nox.git")
     console.print("The Nox Framework is an Open Source Project\n")
 
 def main():

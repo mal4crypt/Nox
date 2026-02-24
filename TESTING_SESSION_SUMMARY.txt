@@ -289,7 +289,7 @@ Recent Commits:
   f497d29 - Phase 2: Add 4 advanced operations modules
   e8e804a - Phase 1: Add 4 enterprise security modules
 
-Repository:      https://github.com/mal4crypt/Nox
+Repository:      https://github.com/mal4crypt/Nox.git
 Branch:          master
 Status:          All changes pushed to GitHub ✅
 

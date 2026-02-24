@@ -316,7 +316,7 @@ Follow: CUSTOM_SCRIPTS_USAGE.md (CI/CD integration)
 - Common patterns in CUSTOM_SCRIPTS_SHOWCASE.md
 
 ### External Resources
-- GitHub: https://github.com/mal4crypt/Nox
+- GitHub: https://github.com/mal4crypt/Nox.git
 - Issues: GitHub Issues for bug reports
 - Discussions: Community contributions
 

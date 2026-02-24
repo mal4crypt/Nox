@@ -8,7 +8,7 @@ Your NOX framework is fully installed and ready to use!
 
 ## 📍 GitHub Repository
 
-**URL:** https://github.com/mal4crypt/Nox  
+**URL:** https://github.com/mal4crypt/Nox.git  
 **Status:** ✅ ALL CHANGES LIVE
 
 ---
@@ -114,7 +114,7 @@ nox cred adx --help
 
 - **Wrapper:** `/home/mal4crypt404/.local/bin/nox`
 - **Framework:** `/home/mal4crypt404/Nox/`
-- **GitHub:** https://github.com/mal4crypt/Nox
+- **GitHub:** https://github.com/mal4crypt/Nox.git
 
 ---
 

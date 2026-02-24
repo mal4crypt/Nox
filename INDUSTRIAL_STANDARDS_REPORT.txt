@@ -444,7 +444,7 @@ Status:         Production Ready
 Date:           2026-02-24
 Test Run:       test_suite.py
 Commit:         260a532
-Repository:     https://github.com/mal4crypt/Nox
+Repository:     https://github.com/mal4crypt/Nox.git
 
 This framework has passed all industrial-standard quality assurance testing and
 is approved for production use. All 14 modules have been validated for:

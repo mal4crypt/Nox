@@ -11,7 +11,7 @@
 📍 GITHUB REPOSITORY CONFIRMATION
 ════════════════════════════════════════════════════════════════════════════════════
 
-Repository:        https://github.com/mal4crypt/Nox
+Repository:        https://github.com/mal4crypt/Nox.git
 Owner:             mal4crypt
 Branch:            master
 Local Path:        /home/mal4crypt404/Nox
@@ -263,7 +263,7 @@ Quick Reference:              SETUP_COMPLETE.md
 Compliance Report:            INDUSTRIAL_STANDARDS_REPORT.txt
 Feature Inventory:            FEATURE_INVENTORY.md
 Documentation Index:          DOCUMENTATION_INDEX.md
-GitHub Repository:            https://github.com/mal4crypt/Nox
+GitHub Repository:            https://github.com/mal4crypt/Nox.git
 Local Framework Path:         /home/mal4crypt404/Nox
 
 ════════════════════════════════════════════════════════════════════════════════════

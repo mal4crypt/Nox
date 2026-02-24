@@ -1,4 +1,6 @@
-# NOX Framework - Installation & Setup Guide
+# NOX **GitHub Repository:** https://github.com/mal4crypt/Nox.git
+
+Your GitHub Repository, you're working with is the **actual production repository** where all your commits are being pushed.mework - Installation & Setup Guide
 
 ## 📋 About Your Setup
 
@@ -77,7 +79,7 @@ nox <suite> <module> [options]
 
 ## 🔗 GitHub Repository Details
 
-**Repository URL:** https://github.com/mal4crypt/Nox
+**Repository URL:** https://github.com/mal4crypt/Nox.git
 
 This is YOUR production repository where all your work is being pushed. The files you're working with locally (/home/mal4crypt404/Nox) are synced with this GitHub repo.
 

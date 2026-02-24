@@ -1,0 +1,427 @@
+#!/usr/bin/env python3
+import sys
+import os
+import argparse
+import importlib
+
+# Ensure Nox can find its modules regardless of where it is executed from
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from rich.console import Console
+
+console = Console()
+
+# --- Identity ---
+VERSION = "1.0.0"
+ORG = "RAVEN-SECURITY"
+
+def print_banner() -> None:
+    """Print the Nox Master Launcher banner."""
+    # Colors
+    BORDER = "bold red"
+    ORG_COLOR = "bold red"
+    NAME = "bold white"
+    TAGLINE = "grey82"
+    WARN = "bold yellow"
+    
+    W = 61
+    
+    console.print(f"[{BORDER}]  ┌{'─' * (W-2)}┐[/{BORDER}]")
+    console.print(f"[{BORDER}]  │{' ' * (W-2)}│[/{BORDER}]")
+    
+    # Name Art
+    art = [
+    "░█████████     ░███    ░██    ░██ ░██████████ ░███    ░██ ",
+    "░██     ░██   ░██░██   ░██    ░██ ░██         ░████   ░██ ",
+    "░██     ░██  ░██  ░██  ░██    ░██ ░██         ░██░██  ░██ ",
+    "░█████████  ░█████████ ░██    ░██ ░█████████  ░██ ░██ ░██ ",
+    "░██   ░██   ░██    ░██  ░██  ░██  ░██         ░██  ░██░██ ",
+    "░██    ░██  ░██    ░██   ░██░██   ░██         ░██   ░████ ",
+    "░██     ░██ ░██    ░██    ░███    ░██████████ ░██    ░███ ",
+    "                                                          ",
+    "░███    ░██   ░██████   ░██    ░██ ",
+    "░████   ░██  ░██   ░██   ░██  ░██  ",
+    "░██░██  ░██ ░██     ░██   ░██░██   ",
+    "░██ ░██ ░██ ░██     ░██    ░███    ",
+    "░██  ░██░██ ░██     ░██   ░██░██   ",
+    "░██   ░████  ░██   ░██   ░██  ░██  ",
+    "░██    ░███   ░██████   ░██    ░██ "
+]
+    for line in art:
+        console.print(f"[{NAME}]  │{line:^{W-2}}│[/{NAME}]")
+        
+    console.print(f"[{BORDER}]  │            ╔═══════════════════════════╗           │[/{BORDER}]")
+    console.print(f"[{BORDER}]  │            ║ [/{BORDER}][{ORG_COLOR}]{ORG:^25}[/{ORG_COLOR}][{BORDER}] ║           │[/{BORDER}]")
+    console.print(f"[{BORDER}]  │            ╚═══════════════════════════╗           │[/{BORDER}]")
+    console.print(f"[{BORDER}]  │{' ' * (W-2)}│[/{BORDER}]")
+    
+    # Secondary Art
+    art2 = [
+        "        ███╗   ██╗ ██████╗ ██╗  ██╗",
+        "        ████╗  ██║██╔═══██╗╚██╗██╔╝",
+        "        ██╔██╗ ██║██║   ██║ ╚███╔╝ ",
+        "        ██║╚██╗██║██║   ██║ ██╔██╗ ",
+        "        ██║ ╚████║╚██████╔╝██╔╝ ██╗",
+        "        ╚═╝  ╚═══╝ ╚═════╝ ╚═╝  ╚═╝",
+    ]
+    for line in art2:
+        console.print(f"[{NAME}]  │{line:^{W-2}}│[/{NAME}]")
+        
+    console.print(f"[{BORDER}]  │{' ' * (W-2)}│[/{BORDER}]")
+    
+    tagline = f"Unified Offensive Security Research Suite  v{VERSION}"
+    console.print(f"[{TAGLINE}]  │{tagline:^{W-2}}│[/{TAGLINE}]")
+    console.print(f"[{BORDER}]  ├{'╌' * (W-2)}┤[/{BORDER}]")
+    
+    disclaimer = "⚠ For authorized security research and testing only."
+    legal = "Unauthorized use is illegal. Raven-Security © 2025"
+    console.print(f"[{WARN}]  │ {disclaimer:^{W-4}} │[/{WARN}]")
+    console.print(f"[{WARN}]  │ {legal:^{W-4}} │[/{WARN}]")
+    console.print(f"[{BORDER}]  └{'─' * (W-2)}┘[/{BORDER}]")
+    console.print()
+
+def print_expansion_notice():
+    """Print a notice about the expansion to 23 tools."""
+    console.print("[bold cyan]═════════════════════════════════════════════════════════════[/bold cyan]")
+    console.print("[bold cyan]NOX FRAMEWORK EXPANSION: Now featuring 23 offensive, defensive,[/bold cyan]")
+    console.print("[bold cyan]and infrastructure security tools. Enhanced capabilities across[/bold cyan]")
+    console.print("[bold cyan]reconnaissance, exploitation, incident response & compliance.[/bold cyan]")
+    console.print("[bold cyan]═════════════════════════════════════════════════════════════[/bold cyan]\n")
+
+def print_quick_start():
+    """Print quick-start examples and common arguments for the welcome screen."""
+    console.print("[bold cyan]━━━ QUICK START ━━━[/bold cyan]")
+    console.print("\n[bold white]Basic Syntax:[/bold white]")
+    console.print("  [yellow]nox <suite> <module> [arguments][/yellow]")
+    
+    console.print("\n[bold white]Most Common Arguments:[/bold white]")
+    console.print("  [cyan]--help[/cyan]              Show detailed help for the module")
+    console.print("  [cyan]--confirm-legal[/cyan]    Confirm authorized use (bypasses prompt)")
+    console.print("  [cyan]--output {json,csv,txt}[/cyan]  Output format (default: json)")
+    console.print("  [cyan]--all[/cyan]              Run all checks/scans available")
+    
+    console.print("\n[bold white]Popular Workflows:[/bold white]")
+    console.print("  [grey69]OSINT Intelligence Gathering:[/grey69]")
+    console.print("    [bold white]nox spekt intel --domain example.com --all --output json[/bold white]")
+    console.print("  [grey69]Kerberos Roasting Attack:[/grey69]")
+    console.print("    [bold white]nox kerb tixr --domain CONTOSO.LOCAL --kerberoast --confirm-legal[/bold white]")
+    console.print("  [grey69]Cloud Bucket Scanning:[/grey69]")
+    console.print("    [bold white]nox rift s3scan --target bucket-name --all[/bold white]")
+    console.print("  [grey69]Post-Exploitation Recon:[/grey69]")
+    console.print("    [bold white]nox wraith recon --all --output csv[/bold white]")
+    console.print("  [grey69]Module Help (shows all options):[/grey69]")
+    console.print("    [bold white]nox <suite> <module> --help[/bold white]")
+    
+    console.print("\n[bold green]For detailed help and all suites:[/bold green]")
+    console.print("  [yellow]nox --help[/yellow]")
+
+def print_help():
+    console.print("[bold cyan]═══════════════════════════════════════════════════════[/bold cyan]")
+    console.print("[bold cyan]  Nox Unified Security Suite - Detailed Help Reference[/bold cyan]")
+    console.print("[bold cyan]═══════════════════════════════════════════════════════[/bold cyan]")
+    console.print("\n[bold white]USAGE:[/bold white]")
+    console.print("  [yellow]nox <suite> <module> [options][/yellow]")
+    console.print("  [yellow]nox [global options][/yellow]")
+    
+    console.print("\n[bold yellow]GLOBAL OPTIONS:[/bold yellow]")
+    console.print("  [cyan]-h, --help[/cyan]         Show this detailed help message")
+    console.print("  [cyan]-s, --suites[/cyan]      List all available suites and modules")
+    console.print("  [cyan]--version[/cyan]        Show Nox version")
+    
+    console.print("\n[bold yellow]STANDARD MODULE ARGUMENTS:[/bold yellow]")
+    console.print("  [cyan]--confirm-legal[/cyan]    Bypass legal confirmation prompt (use with caution)")
+    console.print("  [cyan]--output FORMAT[/cyan]    Output format: [white]json[/white] (default), [white]csv[/white], or [white]txt[/white]")
+    console.print("  [cyan]--all[/cyan]              Execute all available checks/scans for the module")
+    console.print("  [cyan]--help[/cyan]             Show module-specific help and detailed options")
+    
+    suites = {
+        # Original 10
+        "frizz": {"desc": "Industrial & IoT Protocol Fuzzer", "modules": ["modx"], "note": "Fuzzes Modbus/industrial protocols", "cat": "Offensive"},
+        "rift": {"desc": "Cloud & SaaS Misconfiguration Scanner", "modules": ["s3scan"], "note": "Scans AWS S3, Azure blobs, GCS buckets", "cat": "Defensive"},
+        "kerb": {"desc": "Active Directory & Kerberos Attack Suite", "modules": ["tixr"], "note": "Kerberoasting, ASREPRoasting, brute force", "cat": "Offensive"},
+        "spekt": {"desc": "OSINT Automation & Correlation Engine", "modules": ["intel"], "note": "Domain/IP intelligence, passive reconnaissance", "cat": "Defensive"},
+        "shade": {"desc": "Evasion, Obfuscation & AV Bypass Suite", "modules": ["cloak"], "note": "Payload encoding, signature evasion", "cat": "Offensive"},
+        "mobi": {"desc": "Mobile Application Pentesting Suite", "modules": ["droid"], "note": "Android APK analysis and testing", "cat": "Offensive"},
+        "firm": {"desc": "Hardware & Embedded Security Suite", "modules": ["flash"], "note": "Firmware analysis and extraction", "cat": "Offensive"},
+        "wraith": {"desc": "Post-Exploitation & Situational Awareness", "modules": ["recon"], "note": "Enumeration, privilege escalation checks", "cat": "Offensive"},
+        "forge": {"desc": "Threat Hunting & Detection Engineering", "modules": ["hunt"], "note": "Log analysis, pattern matching, IOC hunting", "cat": "Defensive"},
+        "apix": {"desc": "API Security Testing Suite", "modules": ["rest"], "note": "RESTful API enumeration and testing", "cat": "Offensive"},
+        # New Offensive (7)
+        "recon": {"desc": "Active Reconnaissance Suite", "modules": ["subx", "dirx", "portx", "stackx", "snapx"], "note": "Subdomain enum, port scanning, tech stack detection", "cat": "Offensive"},
+        "webpwn": {"desc": "Web Application Attack Suite", "modules": ["sqlix", "xssx", "ssrfx", "lfix", "shelx"], "note": "SQL injection, XSS, SSRF, file inclusion, shells", "cat": "Offensive"},
+        "cred": {"desc": "Credential Attack Suite", "modules": ["sprayx", "crackx", "stuffx", "policyx", "defaultx"], "note": "Password spraying, cracking, stuffing, defaults", "cat": "Offensive"},
+        "netpwn": {"desc": "Network Infrastructure Attack Suite", "modules": ["vlanx", "mitm", "routex", "vpnx", "devx"], "note": "VLAN hopping, MITM, routing attacks, device exploitation", "cat": "Offensive"},
+        "phish": {"desc": "Phishing & Social Engineering Toolkit", "modules": ["campx", "pagex", "mailx", "macrox", "smsx"], "note": "Phishing campaigns, credential capture, email/SMS", "cat": "Offensive"},
+        "c2": {"desc": "Command & Control Framework", "modules": ["server", "agent", "channelx", "stagerx", "taskx"], "note": "C2 server, agent, channels, staging, task management", "cat": "Offensive"},
+        "pivot": {"desc": "Lateral Movement & Tunnelling Suite", "modules": ["sockx", "fwdx", "tunx", "jumpx", "segx"], "note": "SOCKS proxies, port forwarding, tunnelling, lateral movement", "cat": "Offensive"},
+        # New Defensive (5)
+        "blue": {"desc": "Incident Response Suite", "modules": ["memx", "artifx", "timelx", "iocx", "triagex"], "note": "Memory forensics, artifact collection, timeline, IOC scanning", "cat": "Defensive"},
+        "vuln": {"desc": "Vulnerability Management Suite", "modules": ["scanx", "cvex", "patchx", "riskx", "nvdx"], "note": "Vuln scanning, CVE correlation, patch management, risk scoring", "cat": "Defensive"},
+        "watch": {"desc": "Security Monitoring & Alerting Suite", "modules": ["fimx", "anomx", "logx", "honeyx", "canaryx"], "note": "FIM, anomaly detection, log parsing, honeypots, canary tokens", "cat": "Defensive"},
+        "comply": {"desc": "Compliance & Hardening Auditor", "modules": ["cisx", "nistx", "hardenx", "diffx", "reportx"], "note": "CIS/NIST compliance, hardening scripts, gap analysis", "cat": "Defensive"},
+        # New Infrastructure (2)
+        "lab": {"desc": "Attack Lab Environment Builder", "modules": ["vmx", "adlabx", "dockerx", "topox", "resetx"], "note": "Vulnerable VM automation, AD labs, Docker stacks, topology visualization", "cat": "Infrastructure"},
+        "report": {"desc": "Pentest Report Generator", "modules": ["ingestx", "findingx", "execx", "renderx", "brandx"], "note": "Finding ingestion, CVSS scoring, exec summaries, report rendering", "cat": "Infrastructure"},
+    }
+    
+    console.print("\n[bold cyan]AVAILABLE SUITES & MODULES — 23 TOTAL:[/bold cyan]")
+    console.print("[bold white]─────────────────────────────────────────────────────────────[/bold white]")
+    
+    # Group by category
+    offensive = {k: v for k, v in suites.items() if v.get("cat") == "Offensive"}
+    defensive = {k: v for k, v in suites.items() if v.get("cat") == "Defensive"}
+    infrastructure = {k: v for k, v in suites.items() if v.get("cat") == "Infrastructure"}
+    
+    console.print("[bold green]OFFENSIVE (10):[/bold green]")
+    for s, data in offensive.items():
+        modules_str = ", ".join(data["modules"][:2]) + ("..." if len(data["modules"]) > 2 else "")
+        console.print(f"  [bold cyan]{s:^10}[/bold cyan] - {data['desc']:.<38} Modules: [white]{modules_str}[/white]")
+    
+    console.print("\n[bold blue]DEFENSIVE (5):[/bold blue]")
+    for s, data in defensive.items():
+        modules_str = ", ".join(data["modules"][:2]) + ("..." if len(data["modules"]) > 2 else "")
+        console.print(f"  [bold cyan]{s:^10}[/bold cyan] - {data['desc']:.<38} Modules: [white]{modules_str}[/white]")
+    
+    console.print("\n[bold magenta]INFRASTRUCTURE (2):[/bold magenta]")
+    for s, data in infrastructure.items():
+        modules_str = ", ".join(data["modules"][:2]) + ("..." if len(data["modules"]) > 2 else "")
+        console.print(f"  [bold cyan]{s:^10}[/bold cyan] - {data['desc']:.<38} Modules: [white]{modules_str}[/white]\n")
+    
+    console.print("[bold yellow]USAGE EXAMPLES:[/bold yellow]")
+    console.print("[bold white]─────────────────────────────────────────────────────────────[/bold white]")
+    examples = [
+        ("OSINT on a domain", "nox spekt intel --domain example.com --all --output json"),
+        ("Kerberos enumeration", "nox kerb tixr --domain CONTOSO.LOCAL --user admin --kerberoast"),
+        ("S3 bucket scanning", "nox rift s3scan --target my-bucket --all --confirm-legal"),
+        ("Post-exploitation recon", "nox wraith recon --all --output csv"),
+        ("Threat hunting in logs", "nox forge hunt --file access.log --suspicious --ips"),
+        ("Modbus fuzzing", "nox frizz modx --target 192.168.1.100 --iterations 1000"),
+        ("Get module-specific help", "nox spekt intel --help"),
+    ]
+    for desc, cmd in examples:
+        console.print(f"  {desc:.<35} [bold white]{cmd}[/bold white]")
+    
+    console.print("\n[bold yellow]MODULE TYPES:[/bold yellow]")
+    console.print("  [bold white]Standard Modules[/bold white] (hunt, intel, modx, droid, flash):")
+    console.print("    └─ Example: [cyan]nox forge hunt --file access.log --suspicious --output json[/cyan]")
+    console.print("\n  [bold white]Standalone Tools[/bold white] (tixr, s3scan, rest, cloak, recon):")
+    console.print("    └─ Run [cyan]nox <suite> <module> --help[/cyan] to see available options")
+    console.print("    └─ Example: [cyan]nox kerb tixr --help[/cyan]")
+    console.print("    └─ Example: [cyan]nox shade cloak --help[/cyan]")
+    
+    console.print("\n[bold yellow]IMPORTANT NOTES:[/bold yellow]")
+    console.print("  • Always use [bold white]--confirm-legal[/bold white] or confirm authorization when prompted")
+    console.print("  • Results are saved to [bold cyan]./logs/[/bold cyan] and [bold cyan]./reports/[/bold cyan]")
+    console.print("  • Each module generates detailed logs with timestamps and parameters")
+    console.print("  • For security-sensitive operations, verify the config in [bold cyan]config.yaml[/bold cyan]")
+    console.print("  • Authorized use only. See DISCLAIMER.md for legal requirements.")
+    console.print()
+
+import cmd
+
+class NoxConsole(cmd.Cmd):
+    intro = ""
+    prompt = "[bold red]nox[/bold red] > "
+
+    def __init__(self):
+        super().__init__()
+        # Use rich print for the prompt to support colors
+        self.use_rawinput = False 
+
+    def cmdloop(self, intro=None):
+        """Override to use rich console for prompt."""
+        self.preloop()
+        if self.intro:
+            console.print(self.intro)
+        stop = None
+        while not stop:
+            if self.cmdqueue:
+                line = self.cmdqueue.pop(0)
+            else:
+                try:
+                    # Print prompt using rich, then get input
+                    console.print(self.prompt, end="")
+                    line = input()
+                except EOFError:
+                    line = 'EOF'
+            line = self.precmd(line)
+            stop = self.onecmd(line)
+            stop = self.postcmd(stop, line)
+        self.postloop()
+
+    def do_help(self, arg):
+        """Show the master help menu."""
+        print_help()
+
+    def do_exit(self, arg):
+        """Exit the Nox console."""
+        console.print("[bold cyan]Exiting Nox Framework...[/bold cyan]")
+        return True
+        
+    def do_quit(self, arg):
+        """Exit the Nox console."""
+        return self.do_exit(arg)
+
+    def default(self, line):
+        """Handle suite/module execution or external commands."""
+        parts = line.split()
+        if not parts:
+            return
+            
+        suite = parts[0]
+        # Check if it's a known suite
+        suites = ["frizz", "rift", "kerb", "spekt", "shade", "mobi", "firm", "wraith", "forge", "apix",
+                  "recon", "webpwn", "cred", "netpwn", "phish", "c2", "pivot",
+                  "blue", "vuln", "watch", "comply", "lab", "report"]
+        
+        if suite in suites:
+            if len(parts) > 1:
+                module = parts[1]
+                remaining_args = parts[2:]
+                
+                # Check for compiled binary first (both at suite/module and suite/module/module)
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+                binary_path_1 = os.path.join(base_dir, suite, module)
+                binary_path_2 = os.path.join(base_dir, suite, module, module)
+                
+                binary_path = None
+                if os.path.isfile(binary_path_1) and os.access(binary_path_1, os.X_OK) and not binary_path_1.endswith('.py'):
+                    binary_path = binary_path_1
+                elif os.path.isfile(binary_path_2) and os.access(binary_path_2, os.X_OK) and not binary_path_2.endswith('.py'):
+                    binary_path = binary_path_2
+                
+                if binary_path:
+                    # Execute compiled binary
+                    import subprocess
+                    cmd = [binary_path] + remaining_args
+                    try:
+                        subprocess.run(cmd)
+                    except Exception as e:
+                        console.print(f"[bold red]Failed to execute binary '{binary_path}':[/bold red] {e}")
+                    return
+
+                # Fallback to Python module
+                try:
+                    module_path = f"{suite}.{module}"
+                    sys.argv = [f"nox {suite} {module}"] + remaining_args
+                    tool = importlib.import_module(module_path)
+                    if hasattr(tool, 'main'):
+                        # Temporarily override sys.exit to prevent the whole console from closing on module exit
+                        old_exit = sys.exit
+                        def dummy_exit(code=0):
+                            pass
+                        sys.exit = dummy_exit
+                        try:
+                            tool.main()
+                        finally:
+                            sys.exit = old_exit
+                    else:
+                        console.print(f"[bold red]Error:[/bold red] Module '{module_path}' does not have a 'main()' function.")
+                except ImportError as e:
+                    console.print(f"[bold red]Error:[/bold red] Could not find module '{module_path}'. Use 'help' to see available modules.")
+                except Exception as e:
+                    console.print(f"[bold red]Operation Failed:[/bold red] {e}")
+            else:
+                console.print(f"[bold red]Error:[/bold red] Please specify a module for the [bold white]{suite}[/bold white] suite. (e.g. '{suite} <module> -h')")
+        else:
+             # Pass unknown commands to the underlying OS shell
+             os.system(line)
+
+def print_stats():
+    """Print the framework statistics block similar to Metasploit."""
+    console.print("\n[bold green]       =[/bold green] [yellow]nox v{}[/yellow]".format(VERSION))
+    console.print("[bold green]+ -- --=[/bold green] [white]13 suites - 23 modules - 3 utilities[/white]")
+    console.print("[bold green]+ -- --=[/bold green] [white]7 offensive - 4 defensive - 2 infrastructure[/white]\n")
+    console.print("Nox Documentation: https://github.com/mal4crypt/Nox")
+    console.print("The Nox Framework is an Open Source Project\n")
+
+def main():
+    if len(sys.argv) > 1 and sys.argv[1] in ["-h", "--help", "-s", "--suites", "help"]:
+        print_banner()
+        print_help()
+        sys.exit(0)
+
+    # Interactive Console Mode (no arguments provided except the script name itself)
+    if len(sys.argv) == 1:
+        print_banner()
+        print_stats()
+        print_quick_start()  # Show quick start guide on welcome screen
+        try:
+            NoxConsole().cmdloop()
+        except KeyboardInterrupt:
+            console.print("\n[bold cyan]Exiting Nox Framework...[/bold cyan]")
+        sys.exit(0)
+
+    # Direct Execution Mode (arguments provided)
+    suite = None
+    module = None
+    remaining_args = []
+    
+    if len(sys.argv) > 1:
+        if not sys.argv[1].startswith('-'):
+            suite = sys.argv[1]
+            if len(sys.argv) > 2:
+                if not sys.argv[2].startswith('-'):
+                    module = sys.argv[2]
+                    remaining_args = sys.argv[3:]
+                else:
+                    remaining_args = sys.argv[2:]
+            else:
+                remaining_args = []
+        else:
+            remaining_args = sys.argv[1:]
+
+    # For direct execution, we skip the banner if they just want quick output, 
+    # but we included it previously. Let's keep it clean for direct execution unless it fails.
+
+    if not suite:
+        print_banner()
+        print_stats()
+        print_help()
+        sys.exit(0)
+
+    if not module:
+        console.print(f"[bold red]Error:[/bold red] Please specify a module for the [bold white]{suite}[/bold white] suite.")
+        sys.exit(1)
+
+    try:
+        # Check for compiled binary first (both at suite/module and suite/module/module)
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        binary_path_1 = os.path.join(base_dir, suite, module)
+        binary_path_2 = os.path.join(base_dir, suite, module, module)
+        
+        binary_path = None
+        if os.path.isfile(binary_path_1) and os.access(binary_path_1, os.X_OK) and not binary_path_1.endswith('.py'):
+            binary_path = binary_path_1
+        elif os.path.isfile(binary_path_2) and os.access(binary_path_2, os.X_OK) and not binary_path_2.endswith('.py'):
+            binary_path = binary_path_2
+        
+        if binary_path:
+            import subprocess
+            cmd = [binary_path] + remaining_args
+            try:
+                result = subprocess.run(cmd)
+                sys.exit(result.returncode)
+            except Exception as e:
+                console.print(f"[bold red]Failed to execute binary '{binary_path}':[/bold red] {e}")
+                sys.exit(1)
+
+        # Fallback to Python module
+        module_path = f"{suite}.{module}"
+        sys.argv = [f"nox {suite} {module}"] + remaining_args
+        
+        tool = importlib.import_module(module_path)
+        
+        if hasattr(tool, 'main'):
+            tool.main()
+        else:
+            console.print(f"[bold red]Error:[/bold red] Module '{module_path}' does not have a 'main()' function.")
+            
+    except ImportError as e:
+        console.print(f"[bold red]Error:[/bold red] Could not find module '{module_path}'.")
+        console.print(f"[grey50]{e}[/grey50]")
+    except Exception as e:
+        console.print(f"[bold red]Operation Failed:[/bold red] {e}")
+
+if __name__ == "__main__":
+    main()

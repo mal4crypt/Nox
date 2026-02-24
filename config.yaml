@@ -1,0 +1,35 @@
+# Nox Global Configuration
+
+global:
+  version: 1.0.0
+  organization: Raven-Security
+  log_dir: ./logs
+  output_dir: ./reports
+
+logging:
+  level: INFO
+  format: "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
+  date_format: "%Y-%m-%dT%H:%M:%S%z"
+
+# Submodule specific configurations can be added below
+modules:
+  frizz:
+    default_timeout: 5
+  rift:
+    default_cloud: aws
+  kerb:
+    stealth_mode: true
+  spekt:
+    max_results: 100
+  shade:
+    obfuscation_level: 2
+  mobi:
+    adb_path: /usr/bin/adb
+  firm:
+    baud_rate: 115200
+  wraith:
+    post_exploit_timeout: 300
+  forge:
+    sigma_rules_path: ./forge/rules
+  apix:
+    user_agent: Nox/1.0

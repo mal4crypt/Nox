@@ -35,6 +35,25 @@ Nox is a comprehensive modular framework featuring 23 specialized security tools
 - `forge/hunt`: Threat Hunting & Detection Engineering
 - `apix/rest`: API Security Testing
 
+## Installation
+
+To install Nox as a system-wide command:
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/mal4crypt/Nox.git
+   cd Nox
+   ```
+2. Run the installer:
+   ```bash
+   chmod +x install.sh
+   ./install.sh
+   ```
+3. After installation, you can run Nox from anywhere:
+   ```bash
+   nox <suite> <module> [arguments]
+   ```
+
 ## Usage
 ```bash
 nox <suite> <module> [arguments]

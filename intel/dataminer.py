@@ -9,7 +9,12 @@ import argparse
 import json
 import sys
 import os
+import requests
+import socket
+import ssl
+import re
 from datetime import datetime
+from urllib.parse import urlparse
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -63,39 +68,60 @@ class DataMiner:
         """Gather open-source intelligence"""
         self.logger.info("Gathering OSINT...")
         
+        try:
+            # Get basic DNS info
+            hostname = self.args.target.split('/')[0]
+            ip = socket.gethostbyname(hostname)
+            
+            # Get GeoIP info
+            response = requests.get(f"http://ip-api.com/json/{ip}", timeout=5)
+            geo_data = response.json() if response.status_code == 200 else {}
+        except:
+            ip = "N/A"
+            geo_data = {}
+        
         company_info = {
-            'company_name': 'Example Corp',
-            'founded': '2010',
-            'employees': '500-1000',
-            'headquarters': 'San Francisco, CA',
-            'industry': 'Technology',
-            'social_media': {
-                'linkedin': 'example-corp',
-                'twitter': '@examplecorp',
-                'github': 'example-corp'
+            'target': self.args.target,
+            'ip_address': ip,
+            'resolved': ip != "N/A",
+            'geo_location': {
+                'country': geo_data.get('country', 'Unknown'),
+                'region': geo_data.get('regionName', 'Unknown'),
+                'city': geo_data.get('city', 'Unknown'),
+                'latitude': geo_data.get('lat'),
+                'longitude': geo_data.get('lon'),
+                'timezone': geo_data.get('timezone'),
+                'isp': geo_data.get('isp', 'Unknown'),
+                'organization': geo_data.get('org', 'Unknown'),
+                'asn': geo_data.get('as')
             }
         }
         
         domain_info = {
             'domain': self.args.target,
-            'registrar': 'GoDaddy',
-            'registered': '2010-05-12',
-            'expiry': '2026-05-12',
-            'name_servers': ['ns1.example.com', 'ns2.example.com'],
-            'mx_records': ['mail.example.com', 'mail2.example.com'],
-            'spf_record': 'v=spf1 include:example.com ~all',
-            'dmarc_record': 'v=DMARC1; p=reject'
+            'status': 'Active' if ip != "N/A" else 'Unreachable',
+            'ip': ip
         }
         
-        subdomains = [
-            {'subdomain': 'www.example.com', 'ip': '203.0.113.1', 'status': 200},
-            {'subdomain': 'mail.example.com', 'ip': '203.0.113.2', 'status': 200},
-            {'subdomain': 'api.example.com', 'ip': '203.0.113.3', 'status': 200},
-            {'subdomain': 'dev.example.com', 'ip': '203.0.113.4', 'status': 200},
-            {'subdomain': 'admin.example.com', 'ip': '203.0.113.5', 'status': 200},
-            {'subdomain': 'test.example.com', 'ip': '203.0.113.6', 'status': 403},
-            {'subdomain': 'backup.example.com', 'ip': '203.0.113.7', 'status': 200}
-        ]
+        # Try to get subdomains via common patterns
+        subdomains = []
+        common_subs = ['www', 'mail', 'api', 'dev', 'test', 'admin', 'ftp', 'dns', 'cdn', 'backup']
+        for sub in common_subs:
+            try:
+                full = f"{sub}.{self.args.target}"
+                ip_sub = socket.gethostbyname(full)
+                subdomains.append({
+                    'subdomain': full, 
+                    'ip': ip_sub, 
+                    'status': 200,
+                    'resolved': True
+                })
+            except:
+                subdomains.append({
+                    'subdomain': full,
+                    'status': 'Not Found',
+                    'resolved': False
+                })
         
         self.results['osint']['company_info'] = company_info
         self.results['osint']['domain_info'] = domain_info
@@ -121,29 +147,61 @@ class DataMiner:
         return len(subdomains)
     
     def fingerprint_web(self):
-        """Fingerprint web technologies"""
+        """Fingerprint web technologies and infrastructure"""
         self.logger.info("Fingerprinting web technologies...")
         
-        technologies = [
-            {'name': 'Apache', 'version': '2.4.52', 'confidence': 95},
-            {'name': 'PHP', 'version': '7.4.29', 'confidence': 85},
-            {'name': 'MySQL', 'version': '5.7.36', 'confidence': 75},
-            {'name': 'WordPress', 'version': '6.1.1', 'confidence': 90},
-            {'name': 'jQuery', 'version': '3.5.1', 'confidence': 95}
-        ]
+        target = self.args.target
+        technologies = []
+        cmsystems = []
+        servers = []
         
-        cmsystems = [
-            {'name': 'WordPress', 'version': '6.1.1', 'plugins': 15, 'risk': 'High'}
-        ]
-        
-        servers = [
-            {
-                'ip': '203.0.113.1',
-                'hostname': 'www.example.com',
-                'server': 'Apache/2.4.52',
-                'modules': ['mod_rewrite', 'mod_ssl', 'mod_gzip']
-            }
-        ]
+        try:
+            url = f"http://{target}" if not target.startswith('http') else target
+            response = requests.get(url, timeout=5, allow_redirects=True)
+            headers = response.headers
+            content = response.text.lower()
+            
+            # Server detection
+            server_header = headers.get('Server', 'Unknown')
+            servers.append({
+                'ip': 'N/A',
+                'hostname': target,
+                'server': server_header,
+                'modules': [],
+                'status_code': response.status_code
+            })
+            
+            # Technology detection via headers
+            if 'Apache' in server_header:
+                technologies.append({'name': 'Apache', 'confidence': 95})
+            if 'nginx' in server_header:
+                technologies.append({'name': 'Nginx', 'confidence': 95})
+            if 'IIS' in server_header:
+                technologies.append({'name': 'IIS', 'confidence': 95})
+            if 'X-Powered-By' in headers:
+                tech = headers.get('X-Powered-By')
+                technologies.append({'name': tech, 'confidence': 90})
+            
+            # CMS detection
+            if 'wp-content' in content or 'wp-includes' in content:
+                cmsystems.append({'name': 'WordPress', 'confidence': 95, 'risk': 'High'})
+            if 'joomla' in content:
+                cmsystems.append({'name': 'Joomla', 'confidence': 90, 'risk': 'High'})
+            if 'drupal' in content:
+                cmsystems.append({'name': 'Drupal', 'confidence': 90, 'risk': 'High'})
+            
+            # Framework detection
+            if 'laravel' in content:
+                technologies.append({'name': 'Laravel', 'confidence': 85})
+            if 'react' in content or 'react.js' in content:
+                technologies.append({'name': 'React.js', 'confidence': 85})
+            if 'django' in content:
+                technologies.append({'name': 'Django', 'confidence': 85})
+            if 'flask' in content:
+                technologies.append({'name': 'Flask', 'confidence': 85})
+                
+        except Exception as e:
+            self.logger.error(f"Web fingerprinting failed: {e}")
         
         self.results['web_reconnaissance']['technologies'] = technologies
         self.results['web_reconnaissance']['cms'] = cmsystems
@@ -152,41 +210,70 @@ class DataMiner:
         # Findings
         findings = [
             {
-                'type': 'Outdated_Software',
-                'severity': 'High',
-                'finding': 'PHP version 7.4 is EOL (End of Life)',
-                'risk': 'Vulnerable to known exploits'
-            },
-            {
-                'type': 'CMS_Plugin_Risk',
-                'severity': 'High',
-                'finding': '15 WordPress plugins detected',
-                'risk': 'Plugins may have known vulnerabilities'
+                'type': 'Technology_Stack',
+                'severity': 'Info',
+                'finding': f'Identified {len(technologies)} technologies',
+                'risk': 'Technology stack mapped for targeting'
             }
         ]
+        
+        if cmsystems:
+            findings.append({
+                'type': 'CMS_Detected',
+                'severity': 'Medium',
+                'finding': f'{cmsystems[0]["name"]} detected',
+                'risk': 'CMS may have known vulnerabilities'
+            })
         
         self.results['web_reconnaissance']['findings'] = findings
         return len(technologies)
     
     def harvest_emails(self):
-        """Harvest email addresses"""
-        self.logger.info("Harvesting emails...")
+        """Harvest email addresses from various sources"""
+        self.logger.info("Harvesting email addresses...")
         
-        emails = [
-            {'email': 'admin@example.com', 'source': 'Website', 'verified': True},
-            {'email': 'info@example.com', 'source': 'Contact form', 'verified': True},
-            {'email': 'support@example.com', 'source': 'Support page', 'verified': True},
-            {'email': 'sales@example.com', 'source': 'Sales page', 'verified': True},
-            {'email': 'john.doe@example.com', 'source': 'LinkedIn', 'verified': False},
-            {'email': 'jane.smith@example.com', 'source': 'GitHub commits', 'verified': False},
-            {'email': 'developer@example.com', 'source': 'Code comments', 'verified': False},
-            {'email': 'privacy@example.com', 'source': 'Privacy policy', 'verified': True}
+        emails = []
+        email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+        
+        try:
+            url = f"http://{self.args.target}" if not self.args.target.startswith('http') else self.args.target
+            response = requests.get(url, timeout=5)
+            
+            # Extract emails from page source
+            found_emails = re.findall(email_pattern, response.text)
+            for email in set(found_emails):
+                emails.append({
+                    'email': email,
+                    'source': 'Website HTML',
+                    'verified': True
+                })
+        except:
+            pass
+        
+        # Add common patterns for the domain
+        domain = self.args.target.split('/')[0]
+        common_patterns = [
+            f'admin@{domain}',
+            f'info@{domain}',
+            f'support@{domain}',
+            f'contact@{domain}',
+            f'sales@{domain}',
+            f'hr@{domain}',
+            f'careers@{domain}'
         ]
         
+        for email in common_patterns:
+            emails.append({
+                'email': email,
+                'source': 'Common pattern',
+                'verified': False
+            })
+        
         patterns = [
-            {'pattern': 'firstname.lastname@example.com', 'confidence': 'High'},
-            {'pattern': 'first_last@example.com', 'confidence': 'Medium'},
-            {'pattern': 'firstinitial+lastname@example.com', 'confidence': 'Low'}
+            {'pattern': 'firstname.lastname@domain.com', 'confidence': 'High'},
+            {'pattern': 'first.last@domain.com', 'confidence': 'High'},
+            {'pattern': 'firstlast@domain.com', 'confidence': 'Medium'},
+            {'pattern': 'f.last@domain.com', 'confidence': 'Low'}
         ]
         
         self.results['email_intelligence']['emails_found'] = emails
@@ -242,44 +329,89 @@ class DataMiner:
         """Discover API endpoints and hidden parameters"""
         self.logger.info("Discovering endpoints...")
         
-        endpoints = [
-            {'path': '/api/v1/users', 'method': 'GET', 'auth': 'Required', 'status': 200},
-            {'path': '/api/v1/users', 'method': 'POST', 'auth': 'Required', 'status': 201},
-            {'path': '/api/v1/products', 'method': 'GET', 'auth': 'Not required', 'status': 200},
-            {'path': '/api/v1/orders', 'method': 'GET', 'auth': 'Required', 'status': 200},
-            {'path': '/admin/dashboard', 'method': 'GET', 'auth': 'Admin', 'status': 200},
-            {'path': '/admin/users', 'method': 'GET', 'auth': 'Admin', 'status': 200},
-            {'path': '/backup', 'method': 'GET', 'auth': 'None', 'status': 200},
-            {'path': '/debug.php', 'method': 'GET', 'auth': 'None', 'status': 200}
-        ]
+        endpoints = []
+        
+        try:
+            url = f"http://{self.args.target}" if not self.args.target.startswith('http') else self.args.target
+            response = requests.get(url, timeout=5)
+            content = response.text
+            
+            # Look for API paths in JavaScript or HTML
+            api_patterns = [
+                r'/api/v\d+/\w+',
+                r'/rest/\w+',
+                r'/graphql',
+                r'/ajax/\w+'
+            ]
+            
+            for pattern in api_patterns:
+                found = re.findall(pattern, content)
+                for path in set(found):
+                    endpoints.append({
+                        'path': path,
+                        'method': 'GET',
+                        'source': 'JavaScript/HTML',
+                        'auth': 'Unknown'
+                    })
+            
+            # Common endpoints
+            common_endpoints = [
+                '/api/v1/users',
+                '/api/v1/products',
+                '/api/v1/orders',
+                '/api/v2/auth',
+                '/graphql',
+                '/admin/dashboard',
+                '/admin/users',
+                '/backup',
+                '/.env',
+                '/.git/config',
+                '/web.config'
+            ]
+            
+            for endpoint in common_endpoints:
+                try:
+                    test_url = url.rstrip('/') + endpoint
+                    test_resp = requests.head(test_url, timeout=3)
+                    endpoints.append({
+                        'path': endpoint,
+                        'method': 'GET',
+                        'status': test_resp.status_code,
+                        'auth': 'Unknown'
+                    })
+                except:
+                    pass
+                    
+        except:
+            pass
         
         hidden_params = [
-            {'parameter': 'admin', 'locations': ['/api/v1/users?admin=true'], 'type': 'boolean'},
-            {'parameter': 'debug', 'locations': ['/api/v1/products?debug=1'], 'type': 'integer'},
-            {'parameter': 'api_key', 'locations': ['/api/v1/orders?api_key=xxx'], 'type': 'string'}
+            {'parameter': 'admin', 'type': 'boolean', 'risk': 'Privilege escalation'},
+            {'parameter': 'debug', 'type': 'boolean', 'risk': 'Information disclosure'},
+            {'parameter': 'api_key', 'type': 'string', 'risk': 'Authentication bypass'},
+            {'parameter': 'token', 'type': 'string', 'risk': 'Session hijacking'}
         ]
         
         self.results['endpoint_discovery']['endpoints'] = endpoints
         self.results['endpoint_discovery']['hidden_parameters'] = hidden_params
-        
-        # API endpoints
-        api_endpoints = [ep for ep in endpoints if '/api/' in ep['path']]
-        self.results['endpoint_discovery']['api_endpoints'] = api_endpoints
+        self.results['endpoint_discovery']['api_endpoints'] = [ep for ep in endpoints if '/api/' in ep.get('path', '')]
         
         findings = [
             {
-                'type': 'Exposed_Debug_Endpoints',
-                'severity': 'Critical',
-                'finding': 'Found /debug.php and /backup accessible',
-                'risk': 'May expose sensitive debugging information'
-            },
-            {
-                'type': 'API_Parameter_Discovery',
-                'severity': 'Medium',
-                'finding': 'Hidden parameters found in API queries',
-                'risk': 'Potential for parameter tampering'
+                'type': 'API_Endpoints_Discovered',
+                'severity': 'Info',
+                'finding': f'Found {len(endpoints)} endpoints',
+                'risk': 'Endpoints mapped for targeting'
             }
         ]
+        
+        if endpoints:
+            findings.append({
+                'type': 'Endpoint_Enumeration',
+                'severity': 'Medium',
+                'finding': 'API structure can be enumerated',
+                'risk': 'Enables targeted API attacks'
+            })
         
         self.results['endpoint_discovery']['findings'] = findings
         return len(endpoints)

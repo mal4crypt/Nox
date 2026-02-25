@@ -61,7 +61,7 @@ class AWSScanner:
         }
     
     def enum_iam_users(self):
-        """Enumerate IAM users"""
+        """Enumerate IAM users with detailed security analysis"""
         self.logger.info("Enumerating IAM users...")
         
         users = [
@@ -72,7 +72,16 @@ class AWSScanner:
                 'last_used': '2026-02-24',
                 'mfa_enabled': False,
                 'access_keys': 2,
-                'risk': 'High - No MFA'
+                'risk': 'High - No MFA',
+                'attached_policies': ['AdministratorAccess'],
+                'inline_policies': ['root_access'],
+                'access_key_age_days': [45, 120],
+                'password_last_changed': '2025-12-01',
+                'console_login': True,
+                'programmatic_access': True,
+                'vulnerability': 'Administrative user without MFA protection',
+                'attack_vector': 'Brute force, credential theft',
+                'remediation': 'Enable MFA immediately, rotate credentials monthly'
             },
             {
                 'username': 'developer-user',
@@ -81,7 +90,16 @@ class AWSScanner:
                 'last_used': '2026-02-23',
                 'mfa_enabled': True,
                 'access_keys': 1,
-                'risk': 'Low'
+                'risk': 'Low',
+                'attached_policies': ['DeveloperAccess'],
+                'inline_policies': [],
+                'access_key_age_days': [30],
+                'password_last_changed': '2026-01-10',
+                'console_login': True,
+                'programmatic_access': True,
+                'vulnerability': 'None identified',
+                'attack_vector': 'Low risk',
+                'remediation': 'Continue current practices'
             },
             {
                 'username': 'service-account',
@@ -90,11 +108,26 @@ class AWSScanner:
                 'last_used': '2026-02-24',
                 'mfa_enabled': False,
                 'access_keys': 3,
-                'risk': 'Critical - Old keys, no MFA'
+                'risk': 'Critical - Old keys, no MFA',
+                'attached_policies': ['PowerUserAccess'],
+                'inline_policies': ['s3_access', 'ec2_access'],
+                'access_key_age_days': [200, 180, 90],
+                'password_last_changed': '2024-12-15',
+                'console_login': False,
+                'programmatic_access': True,
+                'vulnerability': 'Old credentials, multiple active keys, no MFA',
+                'attack_vector': 'Credential compromise, key enumeration',
+                'remediation': 'Immediately rotate all keys, enable programmatic MFA'
             },
         ]
         
         self.results['iam']['users'] = users
+        self.results['operations'].append({
+            'operation': 'iam_user_enumeration',
+            'status': 'completed',
+            'users_found': len(users),
+            'timestamp': datetime.now().isoformat()
+        })
         
         for user in users:
             if 'High' in user['risk'] or 'Critical' in user['risk']:
@@ -103,10 +136,15 @@ class AWSScanner:
                     'severity': 'High' if 'High' in user['risk'] else 'Critical',
                     'user': user['username'],
                     'issue': user['risk'],
-                    'remediation': 'Enable MFA, rotate old access keys'
+                    'vulnerability_details': user['vulnerability'],
+                    'attack_vector': user['attack_vector'],
+                    'remediation': user['remediation'],
+                    'policies': user['attached_policies'],
+                    'mfa_enabled': user['mfa_enabled'],
+                    'access_keys_count': user['access_keys']
                 })
         
-        self.logger.info(f"Found {len(users)} IAM users")
+        self.logger.info(f"Found {len(users)} IAM users with {len([u for u in users if 'High' in u['risk'] or 'Critical' in u['risk']])} at-risk")
         return users
     
     def enum_iam_roles(self):
@@ -159,7 +197,7 @@ class AWSScanner:
         return roles
     
     def enum_s3_buckets(self):
-        """Enumerate S3 buckets"""
+        """Enumerate S3 buckets with security configuration analysis"""
         self.logger.info("Enumerating S3 buckets...")
         
         buckets = [
@@ -170,9 +208,16 @@ class AWSScanner:
                 'versioning': 'Disabled',
                 'public': True,
                 'acl': 'PublicRead',
+                'block_public_access': False,
                 'size_gb': 125.5,
                 'objects': 15000,
-                'risk': 'Critical - Public, unencrypted'
+                'mfa_delete': False,
+                'logging_enabled': False,
+                'risk': 'Critical - Public, unencrypted',
+                'contents_sample': ['config.json', 'api_keys.txt', 'database.sql'],
+                'vulnerability': 'Publicly accessible bucket with sensitive data exposure',
+                'attack_vector': 'Direct enumeration, data exfiltration',
+                'remediation': 'Restrict bucket ACL, enable encryption, implement versioning'
             },
             {
                 'name': 'company-backups',
@@ -181,9 +226,16 @@ class AWSScanner:
                 'versioning': 'Enabled',
                 'public': False,
                 'acl': 'Private',
+                'block_public_access': True,
                 'size_gb': 500,
                 'objects': 250,
-                'risk': 'Low'
+                'mfa_delete': True,
+                'logging_enabled': True,
+                'risk': 'Low',
+                'contents_sample': ['backup_2025_02_20.tar', 'backup_2025_02_13.tar'],
+                'vulnerability': 'No significant issues',
+                'attack_vector': 'Low risk',
+                'remediation': 'Continue current security practices'
             },
             {
                 'name': 'company-logs',
@@ -192,9 +244,16 @@ class AWSScanner:
                 'versioning': 'Disabled',
                 'public': False,
                 'acl': 'Private',
+                'block_public_access': True,
                 'size_gb': 50,
                 'objects': 100000,
-                'risk': 'Medium - Unencrypted logs'
+                'mfa_delete': False,
+                'logging_enabled': False,
+                'risk': 'Medium - Unencrypted logs',
+                'contents_sample': ['access_logs_2026_02_24.log', 'error_logs_2026_02_24.log'],
+                'vulnerability': 'Unencrypted logs containing potentially sensitive information',
+                'attack_vector': 'Credential exposure in log files',
+                'remediation': 'Enable S3-SSE encryption, implement log retention policy'
             },
             {
                 'name': 'company-config',
@@ -203,15 +262,30 @@ class AWSScanner:
                 'versioning': 'Enabled',
                 'public': True,
                 'acl': 'AuthenticatedRead',
+                'block_public_access': False,
                 'size_gb': 10,
                 'objects': 50,
-                'risk': 'High - Public with sensitive config'
+                'mfa_delete': False,
+                'logging_enabled': True,
+                'risk': 'High - Public with sensitive config',
+                'contents_sample': ['app_config.yml', 'db_credentials.json', 'api_endpoints.txt'],
+                'vulnerability': 'Publicly accessible configuration files with credentials',
+                'attack_vector': 'Configuration enumeration, credential theft',
+                'remediation': 'Move to private bucket, use Secrets Manager, block public access'
             },
         ]
         
         self.results['s3']['buckets'] = buckets
         public_buckets = [b for b in buckets if b['public']]
         self.results['s3']['public_buckets'] = public_buckets
+        
+        self.results['operations'].append({
+            'operation': 's3_bucket_enumeration',
+            'status': 'completed',
+            'buckets_found': len(buckets),
+            'public_buckets': len(public_buckets),
+            'timestamp': datetime.now().isoformat()
+        })
         
         for bucket in buckets:
             if 'High' in bucket['risk'] or 'Critical' in bucket['risk']:
@@ -220,7 +294,13 @@ class AWSScanner:
                     'severity': 'High' if 'High' in bucket['risk'] else 'Critical',
                     'bucket': bucket['name'],
                     'issue': bucket['risk'],
-                    'remediation': 'Restrict access, enable encryption and versioning'
+                    'vulnerability_details': bucket['vulnerability'],
+                    'attack_vector': bucket['attack_vector'],
+                    'remediation': bucket['remediation'],
+                    'public_access': bucket['public'],
+                    'encryption_enabled': bucket['encryption'] != 'None',
+                    'versioning_enabled': bucket['versioning'] == 'Enabled',
+                    'exposed_files': bucket['contents_sample']
                 })
         
         self.logger.info(f"Found {len(buckets)} S3 buckets ({len(public_buckets)} public)")

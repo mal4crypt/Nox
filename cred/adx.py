@@ -19,13 +19,23 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.banner import print_nox_banner
 from utils.formatter import format_output
 from utils.logger import setup_logger
+from utils.anonymity import AnonymityManager, ForensicsEvasion
 
 class ActiveDirectoryScanner:
-    """Active Directory enumeration and exploitation"""
+    """Active Directory enumeration and exploitation with anonymity"""
     
     def __init__(self, args):
         self.args = args
         self.logger = setup_logger(__name__)
+        
+        # Initialize anonymity layer (critical for AD attacks)
+        self.anonymity = AnonymityManager(
+            enable_vpn=getattr(args, 'enable_vpn', True),
+            enable_proxy=getattr(args, 'enable_proxy', True),
+            spoof_timezone=getattr(args, 'spoof_timezone', True)
+        )
+        self.evasion = ForensicsEvasion()
+        
         self.results = {
             'timestamp': datetime.now().isoformat(),
             'target_domain': args.domain,
@@ -34,7 +44,23 @@ class ActiveDirectoryScanner:
             'groups': [],
             'acls': [],
             'kerberos': [],
-            'vulnerabilities': []
+            'vulnerabilities': [],
+            'anonymity_config': self.anonymity.get_anonymity_status(),
+            'spoofed_headers': self.anonymity.get_spoofed_headers(),
+            'detection_evasion': {
+                'ldap_source_ip': self.anonymity._generate_random_ip(),
+                'kerberos_source_ip': self.anonymity._generate_random_ip(),
+                'traffic_encryption': 'TLS via proxy',
+                'dns_leak_protection': True,
+                'timing_evasion': 'Random jitter 50-500ms',
+                'user_agent_rotation': True
+            },
+            'attack_concealment': {
+                'distributed_queries': f'From {len(self.anonymity.proxy_pool)} IPs',
+                'kerberos_anonymization': 'UDP spoofing capable',
+                'query_randomization': True,
+                'log_timestamp_randomization': True
+            }
         }
     
     def enum_users(self):

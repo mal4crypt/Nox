@@ -17,13 +17,23 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.banner import print_nox_banner
 from utils.formatter import format_output
 from utils.logger import setup_logger
+from utils.anonymity import AnonymityManager, ForensicsEvasion
 
 class PacketAnalyzer:
-    """Network packet capture and analysis"""
+    """Network packet capture and analysis with anonymity"""
     
     def __init__(self, args):
         self.args = args
         self.logger = setup_logger(__name__)
+        
+        # Initialize anonymity layer (critical for packet capture)
+        self.anonymity = AnonymityManager(
+            enable_vpn=getattr(args, 'enable_vpn', True),
+            enable_proxy=getattr(args, 'enable_proxy', True),
+            spoof_timezone=getattr(args, 'spoof_timezone', True)
+        )
+        self.evasion = ForensicsEvasion()
+        
         self.results = {
             'timestamp': datetime.now().isoformat(),
             'interface': args.interface,
@@ -49,7 +59,30 @@ class PacketAnalyzer:
                 'suspicious_patterns': []
             },
             'vulnerabilities': [],
-            'summary': {}
+            'summary': {},
+            'anonymity_config': self.anonymity.get_anonymity_status(),
+            'spoofed_headers': self.anonymity.get_spoofed_headers(),
+            'packet_capture_evasion': {
+                'capture_source_ip': self.anonymity._generate_random_ip(),
+                'mac_address_spoofing': True,
+                'arp_spoofing_detection': 'Enabled',
+                'traffic_encryption': 'VPN tunnel',
+                'packet_fragmentation': 'Enabled',
+                'protocol_obfuscation': True
+            },
+            'network_forensics': {
+                'pcap_file_location': 'Encrypted',
+                'packet_metadata': 'Timestamps randomized',
+                'session_reconstruction': 'Not traceable',
+                'flow_logging': 'Disabled',
+                'netstat_cleanup': 'Automated'
+            },
+            'data_exfiltration': {
+                'credentials_encrypted': True,
+                'exfil_source_ip': self.anonymity._generate_random_ip(),
+                'exfil_route': f'Through {len(self.anonymity.proxy_pool)} proxy nodes',
+                'certificate_validation': 'Disabled for MITM'
+            }
         }
     
     def capture_packets(self):

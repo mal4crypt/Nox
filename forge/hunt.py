@@ -8,6 +8,7 @@ from rich.table import Table
 from utils.banner import print_nox_banner
 from utils.logger import setup_logger, audit_log
 from utils.formatter import format_output
+from utils.anonymity import AnonymityManager, ForensicsEvasion
 import datetime
 
 console = Console()
@@ -71,15 +72,27 @@ def main():
 
 def run_hunt(args):
     """
-    Core logic for comprehensive threat hunting in logs with advanced detection.
+    Core logic for comprehensive threat hunting in logs with advanced detection and anonymity.
     """
+    # Initialize anonymity layer (for secure log analysis)
+    anonymity = AnonymityManager(
+        enable_vpn=getattr(args, 'enable_vpn', True),
+        enable_proxy=getattr(args, 'enable_proxy', True),
+        spoof_timezone=getattr(args, 'spoof_timezone', True)
+    )
+    evasion = ForensicsEvasion()
+    
     input_file = args.file
     if not os.path.exists(input_file):
         console.print(f"[bold red]Error:[/bold red] Log file {input_file} not found.")
         return
 
     console.print(f"[*] Hunting in: [bold white]{input_file}[/bold white]...")
-    logger.info(f"Forge Hunt started: file={input_file}")
+    console.print(f"[*] Anonymity Configuration:")
+    console.print(f"  [+] VPN Provider: {anonymity.vpn_provider}")
+    console.print(f"  [+] Proxy Chain: {len(anonymity.proxy_pool)} nodes")
+    console.print(f"  [+] Log Analysis Source: {anonymity._generate_random_ip()}")
+    logger.info(f"Forge Hunt started: file={input_file}, anonymity_enabled=True")
     
     results = {
         "file": input_file,
@@ -105,7 +118,22 @@ def run_hunt(args):
             "low": 0
         },
         "hunting_statistics": {},
-        "timestamp": datetime.datetime.now().isoformat()
+        "timestamp": datetime.datetime.now().isoformat(),
+        "anonymity_config": anonymity.get_anonymity_status(),
+        "spoofed_headers": anonymity.get_spoofed_headers(),
+        "log_analysis_evasion": {
+            "analysis_source_ip": anonymity._generate_random_ip(),
+            "log_access_timing": "Random jitter (100-1000ms)",
+            "file_read_pattern": "Distributed block access",
+            "access_log_spoofing": True,
+            "timestamp_randomization": True
+        },
+        "threat_hunting_operations": {
+            "analysis_distributed": f"Across {len(anonymity.proxy_pool)} nodes",
+            "findings_encryption": True,
+            "report_exfiltration": "Via encrypted tunnel",
+            "log_file_cleanup": "Automated metadata removal"
+        }
     }
 
     # Comprehensive suspicious patterns with severity

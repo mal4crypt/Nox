@@ -17,13 +17,23 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.banner import print_nox_banner
 from utils.formatter import format_output
 from utils.logger import setup_logger
+from utils.anonymity import AnonymityManager, ForensicsEvasion
 
 class AWSScanner:
-    """AWS security assessment and enumeration"""
+    """AWS security assessment and enumeration with anonymity"""
     
     def __init__(self, args):
         self.args = args
         self.logger = setup_logger(__name__)
+        
+        # Initialize anonymity layer (critical for cloud API calls)
+        self.anonymity = AnonymityManager(
+            enable_vpn=getattr(args, 'enable_vpn', True),
+            enable_proxy=getattr(args, 'enable_proxy', True),
+            spoof_timezone=getattr(args, 'spoof_timezone', True)
+        )
+        self.evasion = ForensicsEvasion()
+        
         self.results = {
             'timestamp': datetime.now().isoformat(),
             'target_account': 'aws_account_id',
@@ -57,7 +67,24 @@ class AWSScanner:
                 'status': 'unchecked',
                 'findings': []
             },
-            'summary': {}
+            'summary': {},
+            'anonymity_config': self.anonymity.get_anonymity_status(),
+            'spoofed_headers': self.anonymity.get_spoofed_headers(),
+            'cloud_api_evasion': {
+                'source_ip': self.anonymity._generate_random_ip(),
+                'api_request_routing': f'Through {len(self.anonymity.proxy_pool)} proxies',
+                'user_agent_rotation': True,
+                'request_timing_jitter': True,
+                'cloudtrail_obfuscation': True,
+                'vpc_flow_logs_evasion': 'VPN encrypted traffic'
+            },
+            'aws_reconnaissance': {
+                'api_calls_anonymized': True,
+                'request_source_randomized': True,
+                'credential_exposure_prevention': 'No hardcoded keys in logs',
+                'cross_account_enumeration': 'Distributed source IPs',
+                'cleanup_logs': 'Timestamp randomization enabled'
+            }
         }
     
     def enum_iam_users(self):

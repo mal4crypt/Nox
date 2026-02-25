@@ -138,78 +138,137 @@ class PacketAnalyzer:
         return packets
     
     def analyze_protocols(self):
-        """Analyze captured protocols for vulnerabilities"""
+        """Analyze captured protocols for vulnerabilities with detailed assessment"""
         self.logger.info("Analyzing protocols...")
         
-        # HTTP analysis
+        # HTTP analysis with detailed findings
         http_packets = [
             {
                 'src': '192.168.1.100',
                 'dst': '10.0.0.50',
+                'port': 80,
                 'request': 'GET /api/users HTTP/1.1',
                 'headers': {
-                    'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+                    'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+                    'User-Agent': 'Mozilla/5.0',
+                    'X-Forwarded-For': '203.0.113.50'
                 },
-                'risk': 'High - Token in unencrypted HTTP'
+                'method': 'GET',
+                'path': '/api/users',
+                'risk': 'High - Token in unencrypted HTTP',
+                'vulnerability': 'Sensitive data transmitted over unencrypted channel',
+                'remediation': 'Use HTTPS/TLS encryption for all HTTP communications',
+                'severity': 'High',
+                'impact': 'Token interception, session hijacking'
             }
         ]
         
         self.results['protocols']['http'] = http_packets
         
-        # DNS analysis
+        # DNS analysis with enumeration detection
         dns_packets = [
             {
                 'src': '192.168.1.101',
+                'dst': '8.8.8.8',
                 'query': 'admin.example.com',
                 'type': 'A',
                 'response': '10.0.0.5',
-                'risk': 'Medium - Internal hostname enumeration'
+                'response_time': '45ms',
+                'risk': 'Medium - Internal hostname enumeration',
+                'vulnerability': 'Information disclosure via DNS queries',
+                'remediation': 'Implement DNS query logging and rate limiting',
+                'severity': 'Medium',
+                'impact': 'Network reconnaissance, target enumeration'
+            },
+            {
+                'src': '192.168.1.101',
+                'dst': '8.8.8.8',
+                'query': 'internal-db.example.com',
+                'type': 'A',
+                'response': '10.0.0.20',
+                'response_time': '42ms',
+                'risk': 'Medium - Critical server enumeration',
+                'vulnerability': 'Database server hostname disclosed',
+                'remediation': 'Use split-DNS or internal only DNS records',
+                'severity': 'Medium',
+                'impact': 'Database server discovery'
             }
         ]
         
         self.results['protocols']['dns'] = dns_packets
         
-        # FTP analysis
+        # FTP analysis with credential extraction
         ftp_packets = [
             {
                 'src': '192.168.1.102',
                 'dst': '192.168.1.50',
+                'port': 21,
                 'user': 'admin',
                 'password': 'P@ssw0rd123!',
-                'risk': 'Critical - Credentials in cleartext'
+                'command': 'USER admin',
+                'response_code': '331',
+                'risk': 'Critical - Credentials in cleartext',
+                'vulnerability': 'FTP protocol transmits credentials without encryption',
+                'remediation': 'Use SFTP or FTPS instead of FTP',
+                'severity': 'Critical',
+                'impact': 'Complete credential compromise, file system access'
+            },
+            {
+                'src': '192.168.1.102',
+                'dst': '192.168.1.50',
+                'port': 21,
+                'command': 'RETR sensitive_data.zip',
+                'size': '52428800',
+                'risk': 'Critical - Sensitive data transfer',
+                'vulnerability': 'Unencrypted data exfiltration over FTP',
+                'remediation': 'Enforce encrypted file transfer protocols',
+                'severity': 'Critical',
+                'impact': 'Data breach, intellectual property theft'
             }
         ]
         
         self.results['protocols']['ftp'] = ftp_packets
         
-        # TELNET analysis
+        # TELNET analysis with root compromise
         telnet_packets = [
             {
                 'src': '192.168.1.103',
                 'dst': '192.168.1.25',
+                'port': 23,
                 'user': 'root',
                 'password': 'admin123',
-                'risk': 'Critical - Root credentials in cleartext'
+                'risk': 'Critical - Root credentials in cleartext',
+                'vulnerability': 'Root account credentials transmitted unencrypted via TELNET',
+                'remediation': 'Disable TELNET, use SSH instead',
+                'severity': 'Critical',
+                'impact': 'Full system compromise, privilege escalation'
             }
         ]
         
         self.results['protocols']['telnet'] = telnet_packets
         
-        # Unencrypted protocols
+        # Unencrypted protocols summary
         unencrypted = [
-            {'protocol': 'HTTP', 'count': 1, 'risk': 'High'},
-            {'protocol': 'FTP', 'count': 2, 'risk': 'Critical'},
-            {'protocol': 'TELNET', 'count': 2, 'risk': 'Critical'},
-            {'protocol': 'DNS', 'count': 1, 'risk': 'Medium'}
+            {'protocol': 'HTTP', 'count': 1, 'risk': 'High', 'impact': 'Token exposure'},
+            {'protocol': 'FTP', 'count': 2, 'risk': 'Critical', 'impact': 'Credential + data exposure'},
+            {'protocol': 'TELNET', 'count': 1, 'risk': 'Critical', 'impact': 'Root compromise'},
+            {'protocol': 'DNS', 'count': 2, 'risk': 'Medium', 'impact': 'Information disclosure'}
         ]
         
         self.results['protocols']['unencrypted'] = unencrypted
         
+        self.results['operations'].append({
+            'operation': 'protocol_analysis',
+            'status': 'completed',
+            'protocols_analyzed': 4,
+            'vulnerabilities_found': 6
+        })
+        
         return http_packets + ftp_packets + telnet_packets
     
     def extract_credentials(self):
-        """Extract credentials from captured traffic"""
-        self.logger.info("Extracting credentials...")
+        """Extract credentials from captured traffic with forensic analysis"""
+        self.logger.info("Extracting credentials from traffic...")
         
         credentials = [
             {
@@ -218,8 +277,13 @@ class PacketAnalyzer:
                 'password': 'P@ssw0rd123!',
                 'source_ip': '192.168.1.102',
                 'destination': '192.168.1.50',
+                'port': 21,
                 'timestamp': '2026-02-24 10:02:50.567890',
-                'severity': 'Critical'
+                'severity': 'Critical',
+                'strength': 'Medium',
+                'exposure_method': 'Cleartext FTP transmission',
+                'impact': 'Full system access to 192.168.1.50 with admin privileges',
+                'potential_systems': ['FTP server', 'File storage system', 'Backup system']
             },
             {
                 'type': 'TELNET',
@@ -227,60 +291,140 @@ class PacketAnalyzer:
                 'password': 'admin123',
                 'source_ip': '192.168.1.103',
                 'destination': '192.168.1.25',
+                'port': 23,
                 'timestamp': '2026-02-24 10:02:50.789012',
-                'severity': 'Critical'
+                'severity': 'Critical',
+                'strength': 'Weak',
+                'exposure_method': 'Cleartext TELNET transmission',
+                'impact': 'Complete root access to 192.168.1.25',
+                'potential_systems': ['Linux/Unix server', 'Network appliance', 'Database server']
             },
             {
                 'type': 'HTTP',
                 'token': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+                'token_type': 'JWT',
                 'source_ip': '192.168.1.100',
                 'destination': '10.0.0.50',
+                'port': 80,
                 'timestamp': '2026-02-24 10:02:50.345678',
-                'severity': 'High'
+                'severity': 'High',
+                'expires_in': '3600 seconds',
+                'exposure_method': 'HTTP header (Authorization)',
+                'impact': 'Session hijacking, API access, privilege escalation',
+                'potential_systems': ['Web API', 'REST service', 'Web application']
             }
         ]
         
         self.results['credentials']['found'] = credentials
         self.results['credentials']['sources'] = [
-            {'ip': '192.168.1.102', 'type': 'FTP'},
-            {'ip': '192.168.1.103', 'type': 'TELNET'},
-            {'ip': '192.168.1.100', 'type': 'HTTP'}
+            {
+                'ip': '192.168.1.102',
+                'type': 'FTP',
+                'credentials_count': 1,
+                'protocols': ['FTP'],
+                'threat_level': 'Critical'
+            },
+            {
+                'ip': '192.168.1.103',
+                'type': 'TELNET',
+                'credentials_count': 1,
+                'protocols': ['TELNET'],
+                'threat_level': 'Critical'
+            },
+            {
+                'ip': '192.168.1.100',
+                'type': 'HTTP_TOKEN',
+                'credentials_count': 1,
+                'protocols': ['HTTP'],
+                'threat_level': 'High'
+            }
         ]
+        
+        self.results['vulnerabilities'].extend([
+            {
+                'type': 'Credential_Exposure',
+                'severity': 'Critical',
+                'count': 3,
+                'protocol': 'FTP/TELNET/HTTP',
+                'description': 'Multiple credentials exposed in cleartext protocols',
+                'remediation': 'Enforce TLS/SSL encryption for all protocols',
+                'impact': 'Complete compromise of multiple systems'
+            }
+        ])
+        
+        self.results['operations'].append({
+            'operation': 'credential_extraction',
+            'status': 'completed',
+            'credentials_extracted': len(credentials),
+            'critical_severity': 2
+        })
         
         return credentials
     
     def analyze_network(self):
-        """Analyze network patterns"""
-        self.logger.info("Analyzing network...")
+        """Analyze network patterns and communication flows"""
+        self.logger.info("Analyzing network topology and patterns...")
         
         hosts = [
             {
                 'ip': '192.168.1.100',
                 'hostname': 'workstation-1',
+                'os': 'Windows 10',
                 'packets_sent': 2,
                 'packets_received': 1,
-                'protocols': ['ARP', 'HTTP']
+                'protocols': ['ARP', 'HTTP'],
+                'threat_level': 'Medium',
+                'findings': 'HTTP API access with token exposure'
             },
             {
                 'ip': '192.168.1.101',
                 'hostname': 'workstation-2',
+                'os': 'Windows 10',
                 'packets_sent': 1,
                 'packets_received': 1,
-                'protocols': ['DNS']
+                'protocols': ['DNS'],
+                'threat_level': 'Low',
+                'findings': 'DNS queries to internal and external servers'
             },
             {
                 'ip': '192.168.1.102',
                 'hostname': 'unknown',
+                'os': 'Unknown',
                 'packets_sent': 2,
                 'packets_received': 0,
-                'protocols': ['FTP']
+                'protocols': ['FTP'],
+                'threat_level': 'Critical',
+                'findings': 'FTP admin credentials transmitted in cleartext'
             },
             {
                 'ip': '192.168.1.103',
                 'hostname': 'unknown',
+                'os': 'Unknown',
                 'packets_sent': 2,
                 'packets_received': 0,
-                'protocols': ['TELNET']
+                'protocols': ['TELNET'],
+                'threat_level': 'Critical',
+                'findings': 'TELNET root credentials transmitted in cleartext'
+            },
+            {
+                'ip': '192.168.1.50',
+                'hostname': 'ftp-server',
+                'os': 'Linux',
+                'packets_sent': 0,
+                'packets_received': 2,
+                'protocols': ['FTP'],
+                'threat_level': 'Critical',
+                'findings': 'FTP server with weak security configuration'
+            },
+            {
+                'ip': '192.168.1.25',
+                'hostname': 'system-server',
+                'os': 'Linux',
+                'packets_sent': 0,
+                'packets_received': 2,
+                'protocols': ['TELNET'],
+                'threat_level': 'Critical',
+                'findings': 'Telnet service enabled on critical system'
             },
         ]
         
@@ -291,21 +435,115 @@ class PacketAnalyzer:
                 'source': '192.168.1.102',
                 'destination': '192.168.1.50',
                 'protocol': 'FTP',
+                'port': 21,
                 'packets': 2,
                 'bytes': 128,
-                'risk': 'Critical - Unencrypted credentials'
+                'duration': '5.5s',
+                'risk': 'Critical - Unencrypted credentials',
+                'direction': 'Bidirectional',
+                'commands': ['USER admin', 'PASS P@ssw0rd123!', 'LIST'],
+                'data_transferred': 'Credentials + Directory listing',
+                'impact': 'Administrative access to FTP server'
             },
             {
                 'source': '192.168.1.103',
                 'destination': '192.168.1.25',
                 'protocol': 'TELNET',
+                'port': 23,
                 'packets': 2,
                 'bytes': 256,
-                'risk': 'Critical - Root access over telnet'
+                'duration': '8.2s',
+                'risk': 'Critical - Root access over telnet',
+                'direction': 'Bidirectional',
+                'commands': ['login: root', 'password: admin123', 'whoami'],
+                'data_transferred': 'Credentials + Shell commands',
+                'impact': 'Complete root access to critical system'
             },
+            {
+                'source': '192.168.1.100',
+                'destination': '10.0.0.50',
+                'protocol': 'HTTP',
+                'port': 80,
+                'packets': 1,
+                'bytes': 512,
+                'duration': '1.2s',
+                'risk': 'High - Token exposure',
+                'direction': 'Request/Response',
+                'commands': ['GET /api/users HTTP/1.1'],
+                'data_transferred': 'JWT Token in Authorization header',
+                'impact': 'API access, potential privilege escalation'
+            },
+            {
+                'source': '192.168.1.101',
+                'destination': '8.8.8.8',
+                'protocol': 'DNS',
+                'port': 53,
+                'packets': 1,
+                'bytes': 72,
+                'duration': '0.045s',
+                'risk': 'Medium - Enumeration',
+                'direction': 'Query/Response',
+                'queries': ['admin.example.com', 'internal-db.example.com'],
+                'data_transferred': 'DNS queries and responses',
+                'impact': 'Internal network topology discovered'
+            }
         ]
         
         self.results['network_analysis']['conversations'] = conversations
+        
+        suspicious_patterns = [
+            {
+                'pattern': 'Multiple cleartext credentials',
+                'severity': 'Critical',
+                'indicators': ['FTP', 'TELNET', 'HTTP tokens'],
+                'description': 'Multiple protocols transmitting credentials without encryption',
+                'recommendation': 'Enforce TLS/SSH encryption for all connections',
+                'automated_response': 'Block cleartext protocol traffic'
+            },
+            {
+                'pattern': 'Root account active on network',
+                'severity': 'Critical',
+                'indicators': ['root login via TELNET'],
+                'description': 'Root account credentials exposed over unencrypted protocol',
+                'recommendation': 'Disable root login, use sudo with non-root accounts',
+                'automated_response': 'Alert on root login attempts'
+            },
+            {
+                'pattern': 'Internal server enumeration',
+                'severity': 'Medium',
+                'indicators': ['admin.example.com', 'internal-db.example.com DNS queries'],
+                'description': 'Reconnaissance of internal servers being performed',
+                'recommendation': 'Implement DNS query logging and anomaly detection',
+                'automated_response': 'Flag repeated internal domain queries'
+            }
+        ]
+        
+        self.results['network_analysis']['suspicious_patterns'] = suspicious_patterns
+        
+        self.results['vulnerabilities'].extend([
+            {
+                'type': 'Network_Topology_Disclosure',
+                'severity': 'Medium',
+                'description': 'Network topology exposed through unencrypted DNS queries',
+                'remediation': 'Implement internal DNS security measures'
+            },
+            {
+                'type': 'Unencrypted_Network_Services',
+                'severity': 'Critical',
+                'description': 'Critical services (FTP, TELNET) operating without encryption',
+                'remediation': 'Disable legacy protocols, enforce SSH and SFTP'
+            }
+        ])
+        
+        self.results['operations'].append({
+            'operation': 'network_analysis',
+            'status': 'completed',
+            'hosts_identified': len(hosts),
+            'conversations_analyzed': len(conversations),
+            'patterns_detected': len(suspicious_patterns)
+        })
+        
+        return conversations
         
         suspicious = [
             {

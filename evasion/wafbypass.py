@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.banner import print_nox_banner
 from utils.formatter import format_output
 from utils.logger import setup_logger
+from utils.anonymity import AnonymityManager, ForensicsEvasion
 
 class WAFBypass:
     """WAF detection and bypass testing"""
@@ -24,9 +25,21 @@ class WAFBypass:
     def __init__(self, args):
         self.args = args
         self.logger = setup_logger(__name__)
+        
+        # Initialize anonymity to mask WAF bypass attempts
+        self.anonymity = AnonymityManager(
+            enable_vpn=getattr(args, 'enable_vpn', False),
+            enable_proxy=getattr(args, 'enable_proxy', False),
+            spoof_timezone=True  # Always spoof for WAF bypass
+        )
+        
+        self.evasion = ForensicsEvasion()
+        
         self.results = {
             'timestamp': datetime.now().isoformat(),
             'target': args.target,
+            'anonymity_config': self.anonymity.get_anonymity_status(),
+            'decoy_traffic_config': self.anonymity.generate_decoy_traffic(),
             'waf': {
                 'detected': None,
                 'confidence': 0,
@@ -36,7 +49,8 @@ class WAFBypass:
                 'encoding': [],
                 'obfuscation': [],
                 'headers': [],
-                'fragmentation': []
+                'fragmentation': [],
+                'anonymity_bypass': []
             },
             'payloads': {
                 'sql_injection': [],
@@ -45,6 +59,11 @@ class WAFBypass:
                 'path_traversal': []
             },
             'vulnerabilities': [],
+            'evasion_status': {
+                'tracks_hidden': False,
+                'forensics_protected': False,
+                'fingerprints_masked': False
+            },
             'summary': {}
         }
     

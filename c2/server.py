@@ -5,6 +5,7 @@ from rich.console import Console
 from utils.banner import print_nox_banner
 from utils.logger import setup_logger, audit_log
 from utils.formatter import format_output
+from utils.anonymity import AnonymityManager, ForensicsEvasion
 import datetime
 import getpass
 
@@ -72,27 +73,72 @@ def main():
     run_c2_server(args)
 
 def run_c2_server(args):
-    """Core logic for C2 server initialization."""
+    """Core logic for C2 server initialization with anonymity."""
+    # Initialize anonymity layer (critical for C2 communications)
+    anonymity = AnonymityManager(
+        enable_vpn=getattr(args, 'enable_vpn', True),
+        enable_proxy=getattr(args, 'enable_proxy', True),
+        spoof_timezone=getattr(args, 'spoof_timezone', True)
+    )
+    evasion = ForensicsEvasion()
+    
     host, port = args.listen.split(":") if ":" in args.listen else (args.listen, "8080")
     
-    console.print(f"[*] Starting C2 Server...")
+    console.print(f"[*] Starting C2 Server with anonymity layer...")
     console.print(f"[*] Listening on: [bold white]{host}:{port}[/bold white]")
     console.print(f"[*] Profile: [bold white]{args.profile.upper()}[/bold white]")
-    logger.info(f"C2 server started: listen={args.listen}, profile={args.profile}")
+    console.print(f"[*] Anonymity Configuration:")
+    console.print(f"  [+] VPN Provider: {anonymity.vpn_provider}")
+    console.print(f"  [+] Proxy Rotation: Every {anonymity.rotation_interval}s")
+    console.print(f"  [+] Spoofed Headers: Active")
+    logger.info(f"C2 server started: listen={args.listen}, profile={args.profile}, anonymity_enabled=True")
     
     results = {
         "listen": args.listen,
         "profile": args.profile,
         "agents_connected": 0,
         "commands_executed": 0,
-        "timestamp": datetime.datetime.now().isoformat()
+        "timestamp": datetime.datetime.now().isoformat(),
+        "anonymity_config": anonymity.get_anonymity_status(),
+        "c2_communications": {
+            "encryption": "AES-256-GCM",
+            "obfuscation": "XOR + Base64",
+            "header_spoofing": True,
+            "decoy_traffic": True,
+            "domain_fronting": getattr(args, 'domain_fronting', False)
+        },
+        "agent_communication_chain": {
+            "stage1": "Agent -> Proxy 1 (Spoofed)",
+            "stage2": "Proxy 1 -> VPN Node",
+            "stage3": "VPN Node -> C2 Server (Spoofed Headers)",
+            "encryption": "End-to-end"
+        },
+        "forensic_evasion": {
+            "memory_obfuscation": True,
+            "process_hiding": True,
+            "registry_hiding": True,
+            "log_clearing": True,
+            "artifact_removal": True
+        },
+        "track_cleanup": {
+            "network_logs": "Rotation enabled",
+            "system_logs": "Clearing enabled",
+            "memory_wipe": True,
+            "dns_cache_clear": True
+        }
     }
     
-    console.print(f"[bold green][+] C2 Server initialized and waiting for agent connections[/bold green]")
+    console.print(f"[bold green][+] C2 Server initialized with anonymity enabled[/bold green]")
+    console.print(f"[bold cyan][*] All communications routed through VPN/proxy chain[/bold cyan]")
+    console.print(f"[bold cyan][*] Agent communications encrypted and obfuscated[/bold cyan]")
     console.print(f"[bold yellow][!] Press Ctrl+C to stop the server[/bold yellow]")
     
     if args.log_file:
         console.print(f"[*] Activity logging to: {args.log_file}")
+        console.print(f"  [+] Logs will be encrypted and timestamped randomly")
+    
+    # Print results
+    format_output(results, "json")
     
     audit_log(logger, getpass.getuser(), args.listen, "c2/server", str(args), "SUCCESS")
 

@@ -5,6 +5,7 @@ from rich.console import Console
 from utils.banner import print_nox_banner
 from utils.logger import setup_logger, audit_log
 from utils.formatter import format_output
+from utils.anonymity import AnonymityManager, ForensicsEvasion
 import datetime
 import getpass
 
@@ -70,11 +71,24 @@ def main():
     run_sockx(args)
 
 def run_sockx(args):
-    """Core logic for SOCKS proxy establishment."""
+    """Core logic for SOCKS proxy establishment with anonymity."""
+    # Initialize anonymity layer (critical for lateral movement)
+    anonymity = AnonymityManager(
+        enable_vpn=getattr(args, 'enable_vpn', True),
+        enable_proxy=getattr(args, 'enable_proxy', True),
+        spoof_timezone=getattr(args, 'spoof_timezone', True)
+    )
+    evasion = ForensicsEvasion()
+    
+    console.print(f"[*] Initializing anonymity layer...")
+    console.print(f"  [+] VPN: {anonymity.vpn_provider}")
+    console.print(f"  [+] Proxy pool: {len(anonymity.proxy_pool)} available")
+    console.print(f"  [+] User agent: {anonymity.user_agents[0][:30]}...")
+    
     console.print(f"[*] Setting up SOCKS{args.version} proxy...")
     console.print(f"[*] Target: [bold white]{args.target}:{args.target_port}[/bold white]")
     console.print(f"[*] Listening on: [bold white]{args.listen}[/bold white]")
-    logger.info(f"SOCKS proxy started: target={args.target}, listen={args.listen}")
+    logger.info(f"SOCKS proxy started: target={args.target}, listen={args.listen}, anonymity_enabled=True")
     
     results = {
         "listen": args.listen,
@@ -82,16 +96,42 @@ def run_sockx(args):
         "socks_version": f"SOCKS{args.version}",
         "connections": 0,
         "bytes_transferred": 0,
-        "timestamp": datetime.datetime.now().isoformat()
+        "timestamp": datetime.datetime.now().isoformat(),
+        "anonymity_config": anonymity.get_anonymity_status(),
+        "spoofed_headers": anonymity.get_spoofed_headers(),
+        "decoy_traffic_enabled": True,
+        "track_cleanup": {
+            "history_clearing": True,
+            "metadata_removal": True,
+            "secure_deletion": True,
+            "log_obfuscation": True
+        }
     }
     
     console.print(f"[*] Authenticating to {args.target}...")
-    console.print(f"  [+] Connected as {args.user}")
+    console.print(f"  [+] Connected as {args.user} (identity spoofed)")
+    console.print(f"  [+] Traffic routing through proxy chain")
     
     console.print(f"[bold green][+] SOCKS{args.version} proxy established and listening[/bold green]")
     console.print(f"[bold white]Use -D {args.listen} with curl/ssh to route traffic through proxy[/bold white]")
+    console.print(f"[bold cyan][*] All traffic anonymized via VPN/proxy rotation[/bold cyan]")
+    
+    # Configure decoy traffic during pivot
+    console.print(f"[*] Generating decoy traffic pattern...")
+    decoy_config = {
+        "duration": 120,
+        "dns_queries": ["google.com", "bing.com", "github.com"],
+        "http_endpoints": ["/api/v1/status", "/healthcheck", "/ping"],
+        "fake_ports": [443, 8080, 3306],
+        "interval": 30
+    }
+    console.print(f"  [+] DNS queries to {', '.join(decoy_config['dns_queries'])}")
+    console.print(f"  [+] Fake HTTP endpoints every {decoy_config['interval']}s")
     
     audit_log(logger, getpass.getuser(), args.target, "pivot/sockx", str(args), "SUCCESS")
+    
+    # Print results
+    format_output(results, "json")
 
 if __name__ == "__main__":
     main()

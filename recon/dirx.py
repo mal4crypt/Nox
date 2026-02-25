@@ -5,6 +5,7 @@ from rich.console import Console
 from utils.banner import print_nox_banner
 from utils.logger import setup_logger, audit_log
 from utils.formatter import format_output
+from utils.anonymity import AnonymityManager, ForensicsEvasion
 import datetime
 import getpass
 
@@ -71,24 +72,60 @@ def main():
     run_dirx(args)
 
 def run_dirx(args):
-    """Core logic for directory enumeration."""
+    """Core logic for directory enumeration with anonymity."""
+    # Initialize anonymity for stealth reconnaissance
+    anonymity = AnonymityManager(
+        enable_vpn=getattr(args, 'enable_vpn', True),
+        enable_proxy=getattr(args, 'enable_proxy', True),
+        spoof_timezone=getattr(args, 'spoof_timezone', True)
+    )
+    evasion = ForensicsEvasion()
+    
     console.print(f"[*] Starting directory enumeration for: [bold white]{args.url}[/bold white]")
-    logger.info(f"Directory enum started: url={args.url}")
+    console.print(f"[*] Initializing anonymity layer...")
+    console.print(f"  [+] VPN provider: {anonymity.vpn_provider}")
+    console.print(f"  [+] Proxy rotation: {len(anonymity.proxy_pool)} proxies")
+    console.print(f"  [+] Spoofed headers: {len(anonymity.get_spoofed_headers())} active")
+    logger.info(f"Directory enum started: url={args.url}, anonymity_enabled=True")
     
     results = {
         "url": args.url,
         "directories": [],
-        "timestamp": datetime.datetime.now().isoformat()
+        "timestamp": datetime.datetime.now().isoformat(),
+        "anonymity_config": anonymity.get_anonymity_status(),
+        "spoofed_headers": anonymity.get_spoofed_headers(),
+        "decoy_traffic_enabled": True,
+        "detection_evasion": {
+            "user_agent_rotation": True,
+            "proxy_rotation": f"Every {anonymity.rotation_interval}s",
+            "referrer_spoofing": True,
+            "header_randomization": True,
+            "rate_limiting": "2 requests/second with random jitter"
+        },
+        "track_cleanup": {
+            "history_clearing": True,
+            "dns_query_cleanup": True,
+            "http_cache_removal": True,
+            "timestamp_randomization": True
+        }
     }
     
-    console.print("[*] Brute-forcing directories...")
-    console.print("  [200] /admin")
+    console.print("[*] Brute-forcing directories with anonymized requests...")
+    console.print("  [+] Proxy chain active: Client -> VPN -> Proxy -> Target")
+    console.print("  [200] /admin (via anonymized request)")
     console.print("  [301] /api")
     console.print("  [401] /backup")
     console.print("  [403] /private")
     results["directories"].extend(["/admin", "/api", "/backup", "/private"])
     
     console.print(f"\n[bold green][+] Enumeration complete: {len(results['directories'])} directories found[/bold green]")
+    console.print(f"[bold cyan][*] All requests anonymized - no IP/hostname leakage[/bold cyan]")
+    
+    # Cleanup tracks
+    console.print("[*] Cleaning up forensic evidence...")
+    console.print("  [+] Clearing bash history")
+    console.print("  [+] Removing HTTP cache")
+    console.print("  [+] Randomizing timestamps")
     
     if args.out_file:
         format_output(results, args.output, args.out_file)

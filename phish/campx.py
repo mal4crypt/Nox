@@ -5,6 +5,7 @@ from rich.console import Console
 from utils.banner import print_nox_banner
 from utils.logger import setup_logger, audit_log
 from utils.formatter import format_output
+from utils.anonymity import AnonymityManager, ForensicsEvasion
 import datetime
 import getpass
 
@@ -75,28 +76,60 @@ def main():
     run_campx(args)
 
 def run_campx(args):
-    """Core logic for phishing campaign management."""
-    console.print(f"[*] Creating phishing campaign: [bold white]{args.name}[/bold white]")
-    logger.info(f"Campaign created: name={args.name}")
+    """Core logic for anonymous phishing campaign management with forensic evasion."""
+    
+    # Initialize anonymity manager for phishing campaigns
+    anonymity = AnonymityManager(
+        enable_vpn=True,  # Always use VPN for phishing
+        enable_proxy=True,  # Always use proxy rotation
+        spoof_timezone=True
+    )
+    
+    evasion = ForensicsEvasion()
+    
+    console.print(f"[*] Creating anonymous phishing campaign: [bold white]{args.name}[/bold white]")
+    console.print(f"[*] Anonymity Status: {anonymity.session_id}")
+    logger.info(f"Campaign created: name={args.name}, anonymity_enabled=True")
     
     results = {
         "campaign_name": args.name,
+        "anonymity_config": anonymity.get_anonymity_status(),
+        "forensics_evasion": evasion.spoof_system_info(),
+        "spoofed_headers": anonymity.get_spoofed_headers(),
+        "decoy_traffic": anonymity.generate_decoy_traffic(duration_seconds=120),
         "target_count": 0,
         "sent": 0,
         "opened": 0,
         "clicked": 0,
+        "sender_identity": {
+            "from_address": f"noreply-{anonymity._generate_session_id()[:8]}@anonymous-relay.onion",
+            "reply_to": "bounces@noreply.service",
+            "display_name": anonymity.get_spoofed_headers().get("User-Agent", "System").split("/")[0],
+            "headers": anonymity.get_spoofed_headers()
+        },
+        "track_cleaning": {
+            "clear_history": True,
+            "remove_metadata": True,
+            "secure_deletion": True,
+            "log_obfuscation": True
+        },
         "timestamp": datetime.datetime.now().isoformat()
     }
     
     console.print(f"[*] Loading targets from file...")
     console.print("  [+] Found 150 targets")
+    console.print(f"[*] Sender Identity Spoofed: {results['sender_identity']['from_address']}")
+    console.print(f"[*] Decoy Traffic Pattern: {results['decoy_traffic']['traffic_pattern']}")
     results["target_count"] = 150
     
     if args.dry_run:
-        console.print("[*] DRY RUN - Preview mode")
+        console.print("[*] DRY RUN - Anonymous Preview Mode")
         console.print(f"  Subject: {args.subject if args.subject else 'Not specified'}")
         console.print(f"  Body: {args.body if args.body else 'Not specified'}")
-        console.print("  [+] Would send to 150 targets")
+        console.print(f"  From: {results['sender_identity']['from_address']}")
+        console.print(f"  VPN Route: {anonymity.vpn_provider['name'] if anonymity.vpn_provider else 'Disabled'}")
+        console.print(f"  Proxy: {anonymity.proxy}")
+        console.print("  [+] Would anonymously send to 150 targets")
     elif args.send:
         console.print(f"[*] Sending emails via {args.smtp_server}...")
         console.print("  [+] 150 emails sent successfully")

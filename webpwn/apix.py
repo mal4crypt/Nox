@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.banner import print_nox_banner
 from utils.formatter import format_output
 from utils.logger import setup_logger
+from utils.anonymity import AnonymityManager, ForensicsEvasion
 
 class APISecurityScanner:
     """API security assessment and testing"""
@@ -24,9 +25,18 @@ class APISecurityScanner:
     def __init__(self, args):
         self.args = args
         self.logger = setup_logger(__name__)
+        
+        # Initialize anonymity manager
+        self.anonymity = AnonymityManager(
+            enable_vpn=getattr(args, 'enable_vpn', False),
+            enable_proxy=getattr(args, 'enable_proxy', False),
+            spoof_timezone=getattr(args, 'spoof_timezone', False)
+        )
+        
         self.results = {
             'timestamp': datetime.now().isoformat(),
             'target': args.target,
+            'anonymity_config': self.anonymity.get_anonymity_status(),
             'endpoints': {
                 'total': 0,
                 'discovered': [],

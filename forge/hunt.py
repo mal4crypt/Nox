@@ -71,7 +71,7 @@ def main():
 
 def run_hunt(args):
     """
-    Core logic for threat hunting in logs.
+    Core logic for comprehensive threat hunting in logs with advanced detection.
     """
     input_file = args.file
     if not os.path.exists(input_file):
@@ -83,43 +83,169 @@ def run_hunt(args):
     
     results = {
         "file": input_file,
+        "file_size_bytes": os.path.getsize(input_file),
+        "total_lines": 0,
         "suspicious_matches": [],
+        "attack_patterns": {
+            "command_injection": [],
+            "credential_exposure": [],
+            "malware_indicators": [],
+            "exfiltration": [],
+            "persistence": [],
+            "privilege_escalation": []
+        },
         "ip_frequencies": {},
+        "ip_risk_assessment": {},
+        "user_activity": {},
         "custom_matches": [],
+        "severity_summary": {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+        },
+        "hunting_statistics": {},
         "timestamp": datetime.datetime.now().isoformat()
     }
 
-    suspicious_patterns = [
-        r"base64", r"nc -e", r"bash -i", r"python -c", r"wget ", r"curl ",
-        r"/tmp/", r"/dev/tcp", r"whoami", r"cat /etc/passwd"
-    ]
+    # Comprehensive suspicious patterns with severity
+    suspicious_patterns = {
+        "command_injection": [
+            {"pattern": r"base64", "severity": "High", "description": "Base64 encoded command/payload"},
+            {"pattern": r"nc -e|ncat -e|bash -i", "severity": "Critical", "description": "Reverse shell attempt"},
+            {"pattern": r"python -c|perl -e", "severity": "High", "description": "Inline script execution"},
+            {"pattern": r"eval\(|exec\(", "severity": "Critical", "description": "Dynamic code execution"},
+            {"pattern": r"\$\(\s*", "severity": "High", "description": "Command substitution"},
+            {"pattern": r">\s*/dev/tcp", "severity": "Critical", "description": "Network redirection"},
+        ],
+        "credential_exposure": [
+            {"pattern": r"password\s*[=:|]\s*\S+", "severity": "Critical", "description": "Hardcoded password"},
+            {"pattern": r"api_key\s*[=:|]\s*\S+", "severity": "Critical", "description": "API key exposure"},
+            {"pattern": r"secret\s*[=:|]\s*\S+", "severity": "High", "description": "Secret exposure"},
+            {"pattern": r"token\s*[=:|]\s*\S+", "severity": "High", "description": "Token exposure"},
+            {"pattern": r"mysql://.*:.*@", "severity": "Critical", "description": "Database credentials in URI"},
+        ],
+        "malware_indicators": [
+            {"pattern": r"\.exe|\.bat|\.cmd", "severity": "High", "description": "Windows executable"},
+            {"pattern": r"/tmp/\S+\.(sh|py|pl)", "severity": "High", "description": "Suspicious script in /tmp"},
+            {"pattern": r"chmod.*\+x", "severity": "Medium", "description": "Making script executable"},
+            {"pattern": r"curl.*\|.*bash|wget.*\|.*python", "severity": "Critical", "description": "Piped execution (code injection)"},
+        ],
+        "exfiltration": [
+            {"pattern": r"scp|rsync|sftp", "severity": "High", "description": "File transfer attempt"},
+            {"pattern": r"tar.*gz|zip|rar", "severity": "Medium", "description": "Archive creation"},
+            {"pattern": r"cat /etc/passwd|cat /etc/shadow|cat /etc/hosts", "severity": "High", "description": "System file access"},
+            {"pattern": r"/dev/urandom|/dev/zero", "severity": "Medium", "description": "Data generation"},
+        ],
+        "persistence": [
+            {"pattern": r"crontab|@reboot|\.bashrc|\.bash_profile", "severity": "High", "description": "Persistence mechanism"},
+            {"pattern": r"iptables|firewall|ufw", "severity": "Medium", "description": "Firewall rule modification"},
+            {"pattern": r"systemctl.*service|update-rc\.d", "severity": "High", "description": "Service persistence"},
+        ],
+        "privilege_escalation": [
+            {"pattern": r"sudo -u|sudo -l|sudo -s", "severity": "High", "description": "Sudo abuse"},
+            {"pattern": r"SUID|setuid|4[0-7]{3}", "severity": "High", "description": "SUID binary exploitation"},
+            {"pattern": r"dd if=", "severity": "Medium", "description": "Direct disk access"},
+        ]
+    }
 
     with open(input_file, 'r') as f:
         lines = f.readlines()
+    
+    results["total_lines"] = len(lines)
 
-    # 1. Suspicious Patterns
+    # 1. Suspicious Patterns Analysis
     if args.suspicious or args.all:
-        console.print("[*] Searching for suspicious shell commands...")
-        for i, line in enumerate(lines):
-            for pattern in suspicious_patterns:
-                if re.search(pattern, line, re.IGNORECASE):
-                    results["suspicious_matches"].append({"line": i+1, "content": line.strip(), "pattern": pattern})
-        console.print(f"  [+] Found {len(results['suspicious_matches'])} suspicious occurrences.")
+        console.print("[*] Analyzing for attack patterns...")
+        for category, patterns in suspicious_patterns.items():
+            for i, line in enumerate(lines):
+                for pattern_obj in patterns:
+                    pattern = pattern_obj["pattern"]
+                    if re.search(pattern, line, re.IGNORECASE):
+                        match_info = {
+                            "line_number": i + 1,
+                            "content": line.strip()[:200],
+                            "pattern": pattern,
+                            "category": category,
+                            "severity": pattern_obj["severity"],
+                            "description": pattern_obj["description"]
+                        }
+                        results["attack_patterns"][category].append(match_info)
+                        results["suspicious_matches"].append(match_info)
+                        
+                        # Update severity summary
+                        severity = pattern_obj["severity"].lower()
+                        if severity in results["severity_summary"]:
+                            results["severity_summary"][severity] += 1
+        
+        console.print(f"  [!] Found {len(results['suspicious_matches'])} suspicious matches")
+        for category, matches in results["attack_patterns"].items():
+            if matches:
+                console.print(f"      • {category}: {len(matches)} detections")
 
-    # 2. IP Extraction & Frequency
+    # 2. IP Extraction & Risk Assessment
     if args.ips or args.all:
-        console.print("[*] Analyzing IP address frequencies...")
+        console.print("[*] Analyzing IP addresses and network activity...")
         ip_regex = r"\b(?:\d{1,3}\.){3}\d{1,3}\b"
-        for line in lines:
+        
+        suspicious_ips = set()
+        for i, line in enumerate(lines):
             matches = re.findall(ip_regex, line)
             for ip in matches:
                 results["ip_frequencies"][ip] = results["ip_frequencies"].get(ip, 0) + 1
+                
+                # Risk assessment based on patterns
+                if re.search(r"failed|error|denied|unauthorized", line, re.IGNORECASE):
+                    if ip not in suspicious_ips:
+                        suspicious_ips.add(ip)
         
         # Sort by frequency
         sorted_ips = sorted(results["ip_frequencies"].items(), key=lambda x: x[1], reverse=True)
-        console.print(f"  [+] Analyzed {len(results['ip_frequencies'])} unique IPs.")
+        console.print(f"  [+] Analyzed {len(results['ip_frequencies'])} unique IPs")
+        
+        # Assess risk for suspicious IPs
+        for ip in suspicious_ips:
+            count = results["ip_frequencies"][ip]
+            if count > 100:
+                severity = "Critical"
+            elif count > 50:
+                severity = "High"
+            elif count > 10:
+                severity = "Medium"
+            else:
+                severity = "Low"
+            
+            results["ip_risk_assessment"][ip] = {
+                "occurrence_count": count,
+                "risk_level": severity,
+                "suspicious_activity": True
+            }
+        
         if sorted_ips:
-            console.print(f"  [+] Top IP: [bold cyan]{sorted_ips[0][0]}[/bold cyan] ({sorted_ips[0][1]} hits)")
+            console.print(f"  [+] Top IP: [bold cyan]{sorted_ips[0][0]}[/bold cyan] ({sorted_ips[0][1]} occurrences)")
+
+    # 3. User Activity Analysis
+    if args.all:
+        console.print("[*] Analyzing user activity...")
+        user_pattern = r"(?:user|username|login|uid=)\s*(\w+)"
+        for line in lines:
+            matches = re.findall(user_pattern, line, re.IGNORECASE)
+            for user in matches:
+                if user not in results["user_activity"]:
+                    results["user_activity"][user] = {"count": 0, "activities": []}
+                results["user_activity"][user]["count"] += 1
+                if len(results["user_activity"][user]["activities"]) < 5:
+                    results["user_activity"][user]["activities"].append(line.strip()[:100])
+
+    # 4. Hunting Statistics
+    results["hunting_statistics"] = {
+        "patterns_analyzed": sum(len(p) for p in suspicious_patterns.values()),
+        "total_detections": len(results["suspicious_matches"]),
+        "categories_triggered": len([c for c in results["attack_patterns"] if results["attack_patterns"][c]]),
+        "unique_ips": len(results["ip_frequencies"]),
+        "suspicious_ips": len(results["ip_risk_assessment"]),
+        "users_identified": len(results["user_activity"])
+    }
 
     # Use getpass.getuser() which works reliably in schedulers/containers where os.getlogin() may fail
     audit_log(logger, getpass.getuser(), input_file, "forge/hunt", str(args), "SUCCESS")
@@ -127,6 +253,7 @@ def run_hunt(args):
     # Export
     formatted = format_output(results, args.output)
     console.print("\n[bold cyan]Threat Hunt Report:[/bold cyan]")
+    console.print(f"[*] Critical: {results['severity_summary']['critical']}, High: {results['severity_summary']['high']}, Medium: {results['severity_summary']['medium']}")
     
     report_file = f"./logs/forge_hunt_{os.path.basename(input_file)}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.{args.output}"
     with open(report_file, 'w') as f:

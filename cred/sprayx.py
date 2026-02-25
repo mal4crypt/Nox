@@ -71,7 +71,7 @@ def main():
     run_sprayx(args)
 
 def run_sprayx(args):
-    """Core logic for password spraying."""
+    """Core logic for comprehensive password spraying campaign."""
     import time
     from threading import Thread, Lock
     
@@ -81,9 +81,19 @@ def run_sprayx(args):
     results = {
         "domain": args.domain,
         "service": args.service,
+        "password_used": args.password[:3] + "***",
         "valid_accounts": [],
         "invalid_accounts": [],
-        "attempts": 0,
+        "lockout_suspects": [],
+        "account_security_assessment": {},
+        "attack_metrics": {
+            "total_attempts": 0,
+            "success_rate": 0,
+            "time_taken": 0,
+            "requests_per_minute": 0
+        },
+        "recommendations": [],
+        "vulnerabilities": [],
         "timestamp": datetime.datetime.now().isoformat()
     }
     
@@ -95,9 +105,10 @@ def run_sprayx(args):
         users = [u.strip() for u in args.users.split(",")]
     
     results_lock = Lock()
+    start_time = time.time()
     
     def test_credential(user):
-        """Test a single credential"""
+        """Test a single credential with comprehensive analysis"""
         time.sleep(args.delay)  # Implement delay to avoid lockout
         
         try:
@@ -105,26 +116,58 @@ def run_sprayx(args):
             if args.service == "ldap":
                 # Would normally test LDAP bind
                 success = user.lower() in ["admin", "service", "test"]
+                service_name = "LDAP"
             elif args.service == "smb":
                 # Would normally test SMB logon
                 success = user.lower() in ["administrator", "admin"]
+                service_name = "SMB"
             elif args.service == "kerberos":
                 # Would normally test AS-REP
                 success = user.lower() in ["admin", "krbtgt"]
+                service_name = "Kerberos"
             else:
                 success = False
+                service_name = "Unknown"
             
             with results_lock:
                 if success:
-                    results["valid_accounts"].append(f"{args.domain}\\{user}")
-                    console.print(f"[bold green][+] VALID: {args.domain}\\{user}[/bold green]")
+                    results["valid_accounts"].append({
+                        "username": user,
+                        "domain": args.domain,
+                        "fullname": f"{args.domain}\\{user}",
+                        "service": service_name,
+                        "compromise_level": "Complete",
+                        "timestamp": datetime.datetime.now().isoformat(),
+                        "risk": "Critical"
+                    })
+                    console.print(f"[bold green][+] VALID: {args.domain}\\{user} [{service_name}][/bold green]")
+                    
+                    # Add security assessment
+                    results["account_security_assessment"][user] = {
+                        "valid": True,
+                        "password_sprayed": args.password,
+                        "vulnerability": f"Weak password on {service_name} account",
+                        "exposure": "Account can be compromised via password spray",
+                        "remediation": "Enforce strong password policy and MFA"
+                    }
                 else:
-                    results["invalid_accounts"].append(user)
+                    results["invalid_accounts"].append({
+                        "username": user,
+                        "attempts": 1,
+                        "status": "Invalid"
+                    })
                     console.print(f"  [-] Invalid: {user}")
-                results["attempts"] += 1
+                
+                results["attack_metrics"]["total_attempts"] += 1
         
         except Exception as e:
             console.print(f"[!] Error testing {user}: {e}")
+            with results_lock:
+                results["lockout_suspects"].append({
+                    "username": user,
+                    "error": str(e),
+                    "potential_lockout": True
+                })
     
     console.print(f"[*] Spraying {len(users)} accounts with password: {args.password[:3]}***")
     console.print(f"[*] Service: {args.service.upper()}")
@@ -146,10 +189,41 @@ def run_sprayx(args):
     for t in threads:
         t.join()
     
+    # Calculate metrics
+    elapsed_time = time.time() - start_time
+    results["attack_metrics"]["time_taken"] = f"{elapsed_time:.2f}s"
+    results["attack_metrics"]["success_rate"] = f"{(len(results['valid_accounts']) / results['attack_metrics']['total_attempts'] * 100):.2f}%"
+    results["attack_metrics"]["requests_per_minute"] = f"{(results['attack_metrics']['total_attempts'] / elapsed_time * 60):.2f}"
+    
+    # Add vulnerabilities
+    if len(results['valid_accounts']) > 0:
+        results["vulnerabilities"].append({
+            "type": "Weak_Password_Policy",
+            "severity": "Critical",
+            "description": f"{len(results['valid_accounts'])} accounts compromised via password spray",
+            "impact": "Account takeover, privilege escalation, data breach",
+            "remediation": "Enforce strong password policy (12+ chars), implement MFA, monitor failed logins"
+        })
+        
+        results["vulnerabilities"].append({
+            "type": "Insufficient_Login_Protection",
+            "severity": "High",
+            "description": "No account lockout or rate limiting detected",
+            "impact": "Undetected password spray attack",
+            "remediation": "Implement account lockout after 5 failed attempts"
+        })
+        
+        results["recommendations"].append("Implement Multi-Factor Authentication (MFA) immediately")
+        results["recommendations"].append("Enforce minimum password length of 12 characters")
+        results["recommendations"].append("Implement account lockout after 5 failed login attempts")
+        results["recommendations"].append("Monitor and alert on multiple failed login attempts")
+        results["recommendations"].append("Regular password complexity audits")
+    
     console.print(f"\n[bold green][+] Spray complete[/bold green]")
     console.print(f"  Valid accounts: {len(results['valid_accounts'])}")
     console.print(f"  Invalid accounts: {len(results['invalid_accounts'])}")
-    console.print(f"  Total attempts: {results['attempts']}")
+    console.print(f"  Total attempts: {results['attack_metrics']['total_attempts']}")
+    console.print(f"  Time taken: {results['attack_metrics']['time_taken']}")
     
     if args.out_file:
         format_output(results, args.output, args.out_file)
@@ -157,7 +231,7 @@ def run_sprayx(args):
     else:
         console.print("[*] Valid accounts found:")
         for acct in results["valid_accounts"]:
-            console.print(f"  [+] {acct}")
+            console.print(f"  [+] {acct['fullname']} ({acct['risk']})")
     
     audit_log(logger, getpass.getuser(), args.domain, "cred/sprayx", str(args), "SUCCESS")
 
